@@ -47,8 +47,11 @@ export function ReaderPage() {
         if (cancelled) return
         setDocument(content)
         setChapters(chapterList)
-        const snapshot = await api.library.snapshot(content.format === 'folder' ? 'textbook' : 'paper').catch(() => null)
-        const found = snapshot?.nodes.find((node) => node.id === nodeId)
+        const [papers, textbooks] = await Promise.all([
+          api.library.snapshot('paper').catch(() => null),
+          api.library.snapshot('textbook').catch(() => null)
+        ])
+        const found = [...(papers?.nodes ?? []), ...(textbooks?.nodes ?? [])].find((node) => node.id === nodeId)
         setTitle(found?.title ?? '文献')
         setMode(content.editable && content.format !== 'folder' ? 'source' : 'rendered')
         await api.library.update(found?.kind ?? 'paper', nodeId, { lastOpenedAt: Date.now() }).catch(() => undefined)
@@ -89,9 +92,11 @@ export function ReaderPage() {
               size="small"
               startIcon={<OpenInNewRoundedIcon />}
               onClick={async () => {
-                const snapshot = await api.library.snapshot('paper').catch(() => null)
-                const textbooks = await api.library.snapshot('textbook').catch(() => null)
-                const node = [...(snapshot?.nodes ?? []), ...(textbooks?.nodes ?? [])].find((item) => item.id === nodeId)
+                const [papers, textbooks] = await Promise.all([
+                  api.library.snapshot('paper').catch(() => null),
+                  api.library.snapshot('textbook').catch(() => null)
+                ])
+                const node = [...(papers?.nodes ?? []), ...(textbooks?.nodes ?? [])].find((item) => item.id === nodeId)
                 if (node) await api.app.openPath(node.path)
               }}
             >
