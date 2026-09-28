@@ -43,68 +43,73 @@ const BG_NAMES = {
   'belle-room': '书房 · 白天'
 }
 
+/**
+ * 立绘组合：统一使用最浅肤色（skin6）+ 自然发色，服装取最接近日系校园感的
+ * body3（上衣 + 长裙）与 body1（开衫），避免西方休闲/职业装的造型。
+ * 只需修改这里即可重新生成全套立绘。
+ */
 const SPRITE_DEFS = [
   {
     id: 'sakura',
     name: '小樱 · 学姐',
-    body: 'Set1_body3_skin2.png',
+    body: 'Set1_body3_skin6.png',
     outline: 'Set1_body3_outline.png',
     face: 'face3.png',
-    hair: 'hair1_color1.png'
+    hair: 'hair2_color1.png'
   },
   {
     id: 'yuki',
     name: '雪见 · 学妹',
-    body: 'Set1_body2_skin4.png',
-    outline: 'Set1_body2_outline.png',
+    body: 'Set1_body3_skin6.png',
+    outline: 'Set1_body3_outline.png',
     face: 'face7.png',
-    hair: 'hair2_color2.png'
+    hair: 'hair1_color3.png'
   },
   {
     id: 'rin',
     name: '凛 · 同学',
-    body: 'Set1_body1_skin1.png',
+    body: 'Set1_body1_skin6.png',
     outline: 'Set1_body1_outline.png',
     face: 'face5.png',
-    hair: 'hair3_color1.png'
+    hair: 'hair4_color1.png'
   },
   {
     id: 'kaede',
     name: '枫 · 班长',
-    body: 'Set1_body4_skin3.png',
-    outline: 'Set1_body4_outline.png',
+    body: 'Set1_body3_skin6.png',
+    outline: 'Set1_body3_outline.png',
     face: 'face9.png',
-    hair: 'hair4_color1.png'
+    hair: 'hair2_color3.png'
   },
   {
     id: 'aoi',
     name: '葵 · 学妹',
-    body: 'Set1_body5_skin2.png',
-    outline: 'Set1_body5_outline.png',
+    body: 'Set1_body3_skin6.png',
+    outline: 'Set1_body3_outline.png',
     face: 'face2.png',
-    hair: 'hair1_color3.png'
+    hair: 'hair1_color1.png'
   },
   {
     id: 'hinata',
     name: '日向 · 同桌',
-    body: 'Set1_body2_skin1.png',
-    outline: 'Set1_body2_outline.png',
+    body: 'Set1_body3_skin6.png',
+    outline: 'Set1_body3_outline.png',
     face: 'face4.png',
-    hair: 'hair2_color1.png'
+    hair: 'hair1_color3.png'
   },
   {
     id: 'mio',
     name: '澪 · 学姐',
-    body: 'Set1_body4_skin5.png',
-    outline: 'Set1_body4_outline.png',
+    body: 'Set1_body1_skin6.png',
+    outline: 'Set1_body1_outline.png',
     face: 'face6.png',
-    hair: 'hair3_color1.png'
+    hair: 'hair2_color1.png'
   },
   {
     id: 'sora',
     name: '空 · 同学',
-    body: 'Set1_body1_skin3.png',
-    outline: 'Set1_body1_outline.png',
+    body: 'Set1_body3_skin6.png',
+    outline: 'Set1_body3_outline.png',
     face: 'face8.png',
     hair: 'hair4_color1.png'
   }
