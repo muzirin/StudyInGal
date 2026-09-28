@@ -60,6 +60,7 @@ export function AppShell() {
 
   const activeId = pathToModuleId(location.pathname)
   const activeModule = MODULES.find((module) => module.id === activeId)
+  const isHome = location.pathname === '/'
 
   useEffect(() => {
     setMobileOpen(false)
@@ -170,10 +171,11 @@ export function AppShell() {
             component="main"
             sx={{
               flexGrow: 1,
-              overflow: 'auto',
-              px: compactViewport ? 1.5 : 3,
-              py: compactViewport ? 1.5 : 2.5,
-              pb: compactViewport ? 10 : 5
+              position: 'relative',
+              overflow: isHome ? 'hidden' : 'auto',
+              px: isHome ? 0 : compactViewport ? 1.5 : 3,
+              py: isHome ? 0 : compactViewport ? 1.5 : 2.5,
+              pb: isHome ? 0 : compactViewport ? 10 : 5
             }}
             className="sig-scroll-thin"
           >

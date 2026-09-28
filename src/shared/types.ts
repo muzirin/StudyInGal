@@ -453,6 +453,13 @@ export interface WindowState {
   focused: boolean
 }
 
+/** 用户自己添加的场景背景（本地图片） */
+export interface CustomScene {
+  id: string
+  name: string
+  path: string
+}
+
 export type HistoryKind = 'paper' | 'textbook' | 'script' | 'save' | 'tool' | 'action'
 
 export interface HistoryEntry {
@@ -548,6 +555,7 @@ export interface AppSettings {
   home: {
     sceneId: string
     autoScene: boolean
+    customScenes: CustomScene[]
   }
   live2d: {
     enabled: boolean

@@ -40,6 +40,7 @@ import { api } from '../api'
 import { useAppStore } from '../state/appStore'
 import { EmptyState, Section } from '../components/Section'
 import { buildScenes } from '../lib/scenes'
+import { toAssetUrl } from '../lib/assets'
 import type { ArchiveSave, Character, GalScript } from '@shared/types'
 
 const EMOTION_EMOJI: Record<string, string> = {
@@ -300,7 +301,7 @@ export function GalgamePlayerPage() {
             <Box
               component="img"
               className="sig-breathe"
-              src={sprite}
+              src={toAssetUrl(sprite)}
               alt={character?.name ?? ''}
               sx={{ maxHeight: '76%', maxWidth: '62%', filter: 'drop-shadow(0 18px 30px rgba(0,0,0,0.2))' }}
             />

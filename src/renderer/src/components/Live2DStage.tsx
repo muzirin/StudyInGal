@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Alert, Box, Button, Stack, Typography } from '@mui/material'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
+import { toAssetUrl } from '../lib/assets'
 import type { Character } from '@shared/types'
 
 interface Props {
@@ -102,7 +103,7 @@ export function Live2DStage({ character, height = 320, showControls = true, bare
         application.view.style.height = '100%'
         container.appendChild(application.view)
 
-        const model = await live2d.Live2DModel.from(modelPath, { autoInteract: false })
+        const model = await live2d.Live2DModel.from(toAssetUrl(modelPath) ?? modelPath, { autoInteract: false })
         if (disposed) return
         application.stage.addChild(model)
 
@@ -157,7 +158,7 @@ export function Live2DStage({ character, height = 320, showControls = true, bare
           {sprite ? (
             <Box
               component="img"
-              src={sprite}
+              src={toAssetUrl(sprite)}
               alt={character?.name ?? '角色'}
               className={bare ? 'sig-breathe' : undefined}
               sx={{

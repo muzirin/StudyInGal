@@ -85,7 +85,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   home: {
     sceneId: 'classroom-dusk',
-    autoScene: true
+    autoScene: true,
+    customScenes: []
   },
   live2d: {
     enabled: false,

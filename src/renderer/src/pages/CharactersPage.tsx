@@ -29,10 +29,12 @@ import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded'
 import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded'
 import FileUploadRoundedIcon from '@mui/icons-material/FileUploadRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
 import RecordVoiceOverRoundedIcon from '@mui/icons-material/RecordVoiceOverRounded'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
 import { EmptyState, Section } from '../components/Section'
+import { GITHUB_URL } from '@shared/constants'
 import type { Character, CharacterSprite } from '@shared/types'
 
 const DEFAULT_VOICE: Character['voice'] = { providerId: null, voiceId: '', rate: 1, pitch: 1 }
@@ -293,8 +295,21 @@ export function CharactersPage() {
 
           {tab === 2 ? (
             <Stack spacing={1.5} sx={{ mt: 1 }}>
-              <Alert severity="info" icon={false}>
+              <Alert
+                severity="info"
+                icon={false}
+                action={
+                  <Button
+                    size="small"
+                    startIcon={<OpenInNewRoundedIcon fontSize="inherit" />}
+                    onClick={() => void api.app.openExternal(`${GITHUB_URL}/blob/main/docs/assets.md`)}
+                  >
+                    开源素材库
+                  </Button>
+                }
+              >
                 按情绪配置立绘：对话与 Galgame 会根据模型返回的情绪自动切换对应图片。
+                还没有素材？上面整理了 CC0 / CC-BY 的立绘与背景来源。
               </Alert>
               {(draft?.sprites ?? []).map((sprite, index) => (
                 <Stack key={`${sprite.path}-${index}`} direction="row" spacing={1} alignItems="center">

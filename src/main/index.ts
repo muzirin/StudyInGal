@@ -1,5 +1,7 @@
-import { app, BrowserWindow, session } from 'electron'
+import { app, BrowserWindow, protocol, session } from 'electron'
+import { readFile } from 'node:fs/promises'
 import { writeFile } from 'node:fs/promises'
+import { extname } from 'node:path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { registerIpc } from './ipc/index'
 import { createWindow, markQuitting } from './window'
@@ -11,6 +13,33 @@ import { disposeTray, refreshGlobalShortcut, refreshTray } from './services/tray
 import { seedExampleScripts } from './services/scripts'
 
 const gotLock = app.requestSingleInstanceLock()
+
+const MIME: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.json': 'application/json',
+  '.moc3': 'application/octet-stream',
+  '.model3.json': 'application/json',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
+  '.txt': 'text/plain; charset=utf-8'
+}
+
+const mimeFor = (file: string): string => MIME[extname(file).toLowerCase()] ?? 'application/octet-stream'
+
+// 自定义协议：让渲染进程可以安全地加载本机素材（立绘 / 背景 / Live2D 模型）
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'sigasset',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true, corsEnabled: true }
+  }
+])
+
 if (!gotLock) {
   app.quit()
 } else {
@@ -25,13 +54,27 @@ if (!gotLock) {
   app.whenReady().then(() => {
     electronApp.setAppUserModelId('com.muzirin.studyingal')
 
+    // sigasset://local/<encodeURIComponent(绝对路径)> → 读取本机文件
+    protocol.handle('sigasset', async (request) => {
+      try {
+        const url = new URL(request.url)
+        const filePath = decodeURIComponent(url.pathname.replace(/^\//, ''))
+        const data = await readFile(filePath)
+        return new Response(new Uint8Array(data), {
+          headers: { 'Content-Type': mimeFor(filePath), 'Cache-Control': 'no-cache' }
+        })
+      } catch (error) {
+        return new Response(`asset not found: ${(error as Error).message}`, { status: 404 })
+      }
+    })
+
     if (app.isPackaged) {
       session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
         callback({
           responseHeaders: {
             ...details.responseHeaders,
             'Content-Security-Policy': [
-              "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https: http: ws: wss:; media-src 'self' data: blob: https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'"
+              "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: sigasset:; font-src 'self' data:; connect-src 'self' https: http: ws: wss: sigasset:; media-src 'self' data: blob: https: sigasset:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'"
             ]
           }
         })
