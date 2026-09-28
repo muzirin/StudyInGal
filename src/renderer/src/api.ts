@@ -147,6 +147,10 @@ export const api: StudyApi = {
     rename: (id, title) => invoke(CHANNELS.conversations.rename, { id, title }),
     remove: (id) => invoke(CHANNELS.conversations.remove, { id })
   },
+  stats: {
+    addFocus: (input) => invoke(CHANNELS.stats.addFocus, input),
+    focusSummary: () => invoke(CHANNELS.stats.focusSummary)
+  },
   events: {
     subscribe: (listener) => window.study.on(listener as (event: unknown) => void)
   }

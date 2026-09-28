@@ -24,6 +24,7 @@ import * as xuexitong from '../services/xuexitong'
 import * as history from '../services/history'
 import * as notes from '../services/notes'
 import * as conversations from '../services/conversations'
+import * as focus from '../services/focus'
 import { broadcastWindowState } from '../window'
 
 type Payload = Record<string, unknown>
@@ -448,6 +449,10 @@ const handlers: Record<string, Handler> = {
   [CHANNELS.conversations.rename]: (payload) =>
     conversations.renameConversation(asString(payload.id), asString(payload.title)),
   [CHANNELS.conversations.remove]: (payload) => conversations.removeConversation(asString(payload.id)),
+
+  /* ---------------------------------- stats --------------------------------- */
+  [CHANNELS.stats.addFocus]: (payload) => focus.addFocus(payload as never),
+  [CHANNELS.stats.focusSummary]: () => focus.summary(),
 
   /* ---------------------------------- sync ---------------------------------- */
   [CHANNELS.sync.status]: () => ({

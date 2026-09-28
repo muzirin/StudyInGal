@@ -141,6 +141,10 @@ export const CHANNELS = {
     rename: 'conversations:rename',
     remove: 'conversations:remove'
   },
+  stats: {
+    addFocus: 'stats:addFocus',
+    focusSummary: 'stats:focusSummary'
+  },
   event: 'study:event'
 } as const
 

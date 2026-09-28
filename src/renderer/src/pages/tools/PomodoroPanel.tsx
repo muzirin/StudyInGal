@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Button, Chip, MenuItem, Slider, Stack, TextField, Typography } from '@mui/material'
+import { Box, Button, Chip, Divider, MenuItem, Slider, Stack, TextField, Typography } from '@mui/material'
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
 import PauseRoundedIcon from '@mui/icons-material/PauseRounded'
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded'
+import LocalFireDepartmentRoundedIcon from '@mui/icons-material/LocalFireDepartmentRounded'
+import { api } from '../../api'
 import { Section } from '../../components/Section'
 import { formatClock } from '../../lib/format'
+import type { FocusSummary } from '@shared/types'
 
 export function PomodoroPanel() {
   const [workMinutes, setWorkMinutes] = useState(25)
@@ -13,7 +16,12 @@ export function PomodoroPanel() {
   const [remaining, setRemaining] = useState(25 * 60_000)
   const [running, setRunning] = useState(false)
   const [cycles, setCycles] = useState(0)
+  const [summary, setSummary] = useState<FocusSummary | null>(null)
   const deadlineRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    void api.stats.focusSummary().then(setSummary).catch(() => undefined)
+  }, [])
 
   useEffect(() => {
     if (!running) return
@@ -24,6 +32,10 @@ export function PomodoroPanel() {
         setRunning(false)
         if (phase === 'work') {
           setCycles((value) => value + 1)
+          void api.stats
+            .addFocus({ minutes: workMinutes, kind: 'work' })
+            .then(setSummary)
+            .catch(() => undefined)
           setPhase('break')
           setRemaining(breakMinutes * 60_000)
           if ('Notification' in window && Notification.permission === 'granted') {
@@ -153,6 +165,85 @@ export function PomodoroPanel() {
             }}
           />
         </Box>
+      </Stack>
+
+      <Divider sx={{ my: 1 }} />
+
+      <Stack spacing={2} sx={{ px: 1 }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Typography variant="subtitle2" fontWeight={700}>
+            专注统计
+          </Typography>
+          {summary && summary.streakDays > 0 ? (
+            <Chip size="small" color="warning" icon={<LocalFireDepartmentRoundedIcon />} label={`连续 ${summary.streakDays} 天`} />
+          ) : null}
+        </Stack>
+        <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>
+          <Box>
+            <Typography variant="h6" fontWeight={700}>
+              {summary ? Math.round((summary.todayMinutes / 60) * 10) / 10 : 0} h
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              今日专注
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="h6" fontWeight={700}>
+              {summary?.todaySessions ?? 0}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              今日番茄数
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="h6" fontWeight={700}>
+              {summary?.totalSessions ?? 0}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              累计番茄数
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="h6" fontWeight={700}>
+              {summary ? Math.round((summary.totalMinutes / 60) * 10) / 10 : 0} h
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              累计专注
+            </Typography>
+          </Box>
+        </Stack>
+
+        {summary ? (
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              最近 7 天（分钟）
+            </Typography>
+            <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ height: 72, mt: 0.5 }}>
+              {summary.last7Days.map((day) => {
+                const max = Math.max(60, ...summary.last7Days.map((item) => item.minutes))
+                const height = Math.max(4, (day.minutes / max) * 60)
+                return (
+                  <Stack key={day.date} alignItems="center" spacing={0.25} sx={{ flexGrow: 1 }}>
+                    <Box
+                      title={`${day.date}：${day.minutes} 分钟`}
+                      sx={{
+                        width: '100%',
+                        maxWidth: 26,
+                        height,
+                        borderRadius: 1,
+                        bgcolor: day.minutes > 0 ? 'primary.main' : 'divider',
+                        opacity: day.minutes > 0 ? 1 : 0.5
+                      }}
+                    />
+                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10 }}>
+                      {day.date.slice(5)}
+                    </Typography>
+                  </Stack>
+                )
+              })}
+            </Stack>
+          </Box>
+        ) : null}
       </Stack>
     </Section>
   )

@@ -499,6 +499,22 @@ export interface Conversation {
   updatedAt: number
 }
 
+export interface FocusSession {
+  id: string
+  at: number
+  minutes: number
+  kind: 'work' | 'break'
+}
+
+export interface FocusSummary {
+  todayMinutes: number
+  todaySessions: number
+  totalMinutes: number
+  totalSessions: number
+  streakDays: number
+  last7Days: { date: string; minutes: number }[]
+}
+
 export type NavPosition = 'left' | 'right' | 'top' | 'bottom'
 
 export type ThemeMode = 'light' | 'dark' | 'system'

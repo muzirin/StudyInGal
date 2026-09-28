@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { ALL_CHANNELS, CHANNELS } from '@shared/channels'
 
@@ -16,6 +16,13 @@ const bridge = {
     ipcRenderer.on(CHANNELS.event, handler)
     return () => {
       ipcRenderer.removeListener(CHANNELS.event, handler)
+    }
+  },
+  pathForFile(file: File): string {
+    try {
+      return webUtils.getPathForFile(file)
+    } catch {
+      return ''
     }
   },
   platform: process.platform,

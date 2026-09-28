@@ -11,6 +11,7 @@ import type {
   Conversation,
   DialogueLine,
   DocumentContent,
+  FocusSummary,
   FolderNode,
   GalGenerateOptions,
   GalScript,
@@ -208,6 +209,10 @@ export interface StudyApi {
     }): Promise<Conversation>
     rename(id: string, title: string): Promise<Conversation[]>
     remove(id: string): Promise<Conversation[]>
+  }
+  stats: {
+    addFocus(input: { minutes: number; kind?: 'work' | 'break' }): Promise<FocusSummary>
+    focusSummary(): Promise<FocusSummary>
   }
   events: {
     subscribe(listener: (event: import('./channels').StudyEvent) => void): () => void

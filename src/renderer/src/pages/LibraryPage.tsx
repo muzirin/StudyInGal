@@ -105,6 +105,7 @@ export function LibraryPage() {
   const [detailDraft, setDetailDraft] = useState<Partial<LibraryNode>>({})
   const [detailTag, setDetailTag] = useState('')
   const [ocrView, setOcrView] = useState<{ title: string; text: string } | null>(null)
+  const [dragActive, setDragActive] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -263,6 +264,28 @@ export function LibraryPage() {
     } catch (error) {
       toast('error', `OCR 失败：${(error as Error).message}`)
     }
+  }
+
+  const handleDrop = async (event: React.DragEvent<HTMLDivElement>): Promise<void> => {
+    event.preventDefault()
+    setDragActive(false)
+    const files = Array.from(event.dataTransfer?.files ?? [])
+    if (files.length === 0) return
+    const paths = files.map((file) => window.study.pathForFile(file)).filter(Boolean)
+    if (paths.length === 0) {
+      toast('warning', '无法读取拖入文件的路径，请改用「导入文件」按钮（文件夹请用「导入文件夹」）')
+      return
+    }
+    const created = await api.library.import({
+      kind,
+      paths,
+      folderId: folderFilter,
+      seriesId: seriesFilter,
+      categoryId: categoryFilter,
+      tags: tagFilter ? [tagFilter] : []
+    })
+    toast(created.length === paths.length ? 'success' : 'warning', `已导入 ${created.length} / ${paths.length} 个文件`)
+    await load()
   }
 
   const KindIcon = kind === 'paper' ? ScienceRoundedIcon : MenuBookRoundedIcon
@@ -426,7 +449,45 @@ export function LibraryPage() {
   )
 
   return (
-    <Stack spacing={2.5}>
+    <Stack
+      spacing={2.5}
+      onDragOver={(event) => {
+        event.preventDefault()
+        if (!dragActive) setDragActive(true)
+      }}
+      onDragLeave={(event) => {
+        if (event.currentTarget === event.target) setDragActive(false)
+      }}
+      onDrop={(event) => void handleDrop(event)}
+      sx={{ position: 'relative', minHeight: '100%' }}
+    >
+      {dragActive ? (
+        <Box
+          sx={{
+            position: 'fixed',
+            inset: 60,
+            zIndex: 2000,
+            borderRadius: 4,
+            border: '2px dashed',
+            borderColor: 'primary.main',
+            bgcolor: alpha(theme.palette.primary.main, 0.08),
+            backdropFilter: 'blur(2px)',
+            display: 'grid',
+            placeItems: 'center',
+            pointerEvents: 'none'
+          }}
+        >
+          <Stack alignItems="center" spacing={1}>
+            <UploadFileRoundedIcon sx={{ fontSize: 42, color: 'primary.main' }} />
+            <Typography variant="subtitle1" fontWeight={700}>
+              松开即可导入到{kind === 'paper' ? '论文库' : '教材库'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              支持 .md / .tex / .pdf / .docx / .txt 等
+            </Typography>
+          </Stack>
+        </Box>
+      ) : null}
       <Card elevation={0}>
         <Stack spacing={1.5} sx={{ p: 2 }}>
           <Stack direction="row" alignItems="flex-start" spacing={1.5} flexWrap="wrap" useFlexGap>
