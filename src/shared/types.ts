@@ -481,6 +481,24 @@ export interface NoteEntry {
   updatedAt: number
 }
 
+export interface ConversationMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  emotion: string
+  at: number
+}
+
+export interface Conversation {
+  id: string
+  characterId: string
+  title: string
+  sourceId: string
+  messages: ConversationMessage[]
+  createdAt: number
+  updatedAt: number
+}
+
 export type NavPosition = 'left' | 'right' | 'top' | 'bottom'
 
 export type ThemeMode = 'light' | 'dark' | 'system'

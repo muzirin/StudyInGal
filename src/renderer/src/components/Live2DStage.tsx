@@ -8,6 +8,7 @@ interface Props {
   height?: number
   showControls?: boolean
   bare?: boolean
+  emotion?: string
 }
 
 /**
@@ -17,7 +18,7 @@ interface Props {
  * 配置模型路径后，这里会尝试动态加载 pixi.js + pixi-live2d-display；
  * 若运行库不存在，则回退到角色立绘/头像并给出安装指引。
  */
-export function Live2DStage({ character, height = 320, showControls = true, bare = false }: Props) {
+export function Live2DStage({ character, height = 320, showControls = true, bare = false, emotion = 'neutral' }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const [message, setMessage] = useState('')
@@ -53,7 +54,8 @@ export function Live2DStage({ character, height = 320, showControls = true, bare
     }
   }, [modelPath])
 
-  const sprite = character?.sprites?.[0]?.path ?? null
+  const sprite =
+    character?.sprites?.find((item) => item.emotion === emotion)?.path ?? character?.sprites?.[0]?.path ?? null
 
   return (
     <Box

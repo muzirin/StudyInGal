@@ -6,6 +6,7 @@ import { createWindow } from './window'
 import { getSettings } from './services/settings'
 import { killAllTerminals } from './services/terminal'
 import { captureError } from './services/errors'
+import { startScheduler, stopScheduler } from './services/scheduler'
 
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
@@ -40,6 +41,7 @@ if (!gotLock) {
     })
 
     registerIpc()
+    startScheduler()
 
     const window = createWindow()
     if (getSettings().developer.openDevToolsOnStart) {
@@ -83,6 +85,7 @@ if (!gotLock) {
 
   app.on('before-quit', () => {
     killAllTerminals()
+    stopScheduler()
   })
 }
 

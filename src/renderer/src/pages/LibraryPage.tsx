@@ -104,6 +104,7 @@ export function LibraryPage() {
   const [detailNode, setDetailNode] = useState<LibraryNode | null>(null)
   const [detailDraft, setDetailDraft] = useState<Partial<LibraryNode>>({})
   const [detailTag, setDetailTag] = useState('')
+  const [ocrView, setOcrView] = useState<{ title: string; text: string } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -649,6 +650,20 @@ export function LibraryPage() {
           <FactCheckRoundedIcon fontSize="small" style={{ marginRight: 12 }} /> 本地 OCR
         </MenuItem>
         <MenuItem
+          onClick={async () => {
+            if (!menuNode) return
+            const result = await api.library.ocrText(menuNode.id)
+            setMenuAnchor(null)
+            if (!result.exists) {
+              toast('info', '该文献还没有 OCR 结果，可先执行「本地 OCR」')
+              return
+            }
+            setOcrView({ title: menuNode.title, text: result.text })
+          }}
+        >
+          <FactCheckRoundedIcon fontSize="small" style={{ marginRight: 12 }} /> 查看 OCR 文本
+        </MenuItem>
+        <MenuItem
           onClick={() => {
             if (menuNode) void api.app.revealPath(menuNode.path)
             setMenuAnchor(null)
@@ -808,6 +823,31 @@ export function LibraryPage() {
           <Button variant="contained" onClick={() => void saveDetail()}>
             保存
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={ocrView !== null} onClose={() => setOcrView(null)} fullWidth maxWidth="md">
+        <DialogTitle>OCR 文本 · {ocrView?.title}</DialogTitle>
+        <DialogContent dividers>
+          <Box
+            component="pre"
+            sx={{ m: 0, whiteSpace: 'pre-wrap', fontSize: 13.5, fontFamily: 'JetBrains Mono, Consolas, monospace' }}
+          >
+            {ocrView?.text || '（空）'}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              if (ocrView) {
+                void navigator.clipboard.writeText(ocrView.text)
+                toast('success', '已复制到剪贴板')
+              }
+            }}
+          >
+            复制
+          </Button>
+          <Button onClick={() => setOcrView(null)}>关闭</Button>
         </DialogActions>
       </Dialog>
 

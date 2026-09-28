@@ -23,6 +23,7 @@ import * as playground from '../services/playground'
 import * as xuexitong from '../services/xuexitong'
 import * as history from '../services/history'
 import * as notes from '../services/notes'
+import * as conversations from '../services/conversations'
 import { broadcastWindowState } from '../window'
 
 type Payload = Record<string, unknown>
@@ -192,6 +193,16 @@ const handlers: Record<string, Handler> = {
     } catch (error) {
       libraryService.updateNode(found.kind, found.node.id, { ocrStatus: 'failed' })
       throw error
+    }
+  },
+  [CHANNELS.library.ocrText]: async (payload) => {
+    const nodeId = asString(payload.nodeId)
+    const target = join(libraryDir(), `${nodeId}.ocr.txt`)
+    try {
+      const text = await readFile(target, 'utf8')
+      return { exists: true, text }
+    } catch {
+      return { exists: false, text: '' }
     }
   },
   [CHANNELS.library.createFolder]: (payload) =>
@@ -393,6 +404,14 @@ const handlers: Record<string, Handler> = {
   [CHANNELS.notes.upsert]: (payload) => notes.upsertNote(payload as never),
   [CHANNELS.notes.remove]: (payload) => notes.removeNote(asString(payload.id)),
   [CHANNELS.notes.clear]: (payload) => notes.clearNotes(asString(payload.nodeId)),
+
+  /* ----------------------------- conversations ------------------------------ */
+  [CHANNELS.conversations.list]: (payload) =>
+    conversations.listConversations(payload.characterId ? asString(payload.characterId) : undefined),
+  [CHANNELS.conversations.append]: (payload) => conversations.appendMessage(payload as never),
+  [CHANNELS.conversations.rename]: (payload) =>
+    conversations.renameConversation(asString(payload.id), asString(payload.title)),
+  [CHANNELS.conversations.remove]: (payload) => conversations.removeConversation(asString(payload.id)),
 
   /* ---------------------------------- sync ---------------------------------- */
   [CHANNELS.sync.status]: () => ({

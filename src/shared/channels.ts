@@ -31,6 +31,7 @@ export const CHANNELS = {
     mergeExport: 'library:mergeExport',
     chapters: 'library:chapters',
     ocr: 'library:ocr',
+    ocrText: 'library:ocrText',
     createFolder: 'library:createFolder',
     createSeries: 'library:createSeries',
     createCategory: 'library:createCategory',
@@ -130,6 +131,12 @@ export const CHANNELS = {
     upsert: 'notes:upsert',
     remove: 'notes:remove',
     clear: 'notes:clear'
+  },
+  conversations: {
+    list: 'conversations:list',
+    append: 'conversations:append',
+    rename: 'conversations:rename',
+    remove: 'conversations:remove'
   },
   event: 'study:event'
 } as const

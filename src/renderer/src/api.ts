@@ -37,6 +37,7 @@ export const api: StudyApi = {
     mergeExport: (nodeId, target) => invoke(CHANNELS.library.mergeExport, { nodeId, target }),
     chapters: (nodeId) => invoke(CHANNELS.library.chapters, { nodeId }),
     ocr: (nodeId, language) => invoke(CHANNELS.library.ocr, { nodeId, language }),
+    ocrText: (nodeId) => invoke(CHANNELS.library.ocrText, { nodeId }),
     createFolder: (input) => invoke(CHANNELS.library.createFolder, input),
     createSeries: (input) => invoke(CHANNELS.library.createSeries, input),
     createCategory: (input) => invoke(CHANNELS.library.createCategory, input),
@@ -136,6 +137,12 @@ export const api: StudyApi = {
     upsert: (entry) => invoke(CHANNELS.notes.upsert, entry),
     remove: (id) => invoke(CHANNELS.notes.remove, { id }),
     clear: (nodeId) => invoke(CHANNELS.notes.clear, { nodeId })
+  },
+  conversations: {
+    list: (characterId) => invoke(CHANNELS.conversations.list, { characterId }),
+    append: (input) => invoke(CHANNELS.conversations.append, input),
+    rename: (id, title) => invoke(CHANNELS.conversations.rename, { id, title }),
+    remove: (id) => invoke(CHANNELS.conversations.remove, { id })
   },
   events: {
     subscribe: (listener) => window.study.on(listener as (event: unknown) => void)

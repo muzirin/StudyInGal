@@ -8,6 +8,7 @@ import type {
   Character,
   CloudEntry,
   CloudMount,
+  Conversation,
   DialogueLine,
   DocumentContent,
   FolderNode,
@@ -72,6 +73,7 @@ export interface StudyApi {
     mergeExport(nodeId: string, target: string): Promise<string>
     chapters(nodeId: string): Promise<ChapterRef[]>
     ocr(nodeId: string, language: string): Promise<OcrResult>
+    ocrText(nodeId: string): Promise<{ exists: boolean; text: string }>
     createFolder(input: { kind: LibraryKind; name: string; parentId: string | null }): Promise<FolderNode>
     createSeries(input: { kind: LibraryKind; name: string; description?: string }): Promise<SeriesNode>
     createCategory(input: { kind: LibraryKind; name: string; color?: string }): Promise<CategoryNode>
@@ -171,6 +173,17 @@ export interface StudyApi {
     upsert(entry: Partial<NoteEntry> & { nodeId: string }): Promise<NoteEntry>
     remove(id: string): Promise<NoteEntry[]>
     clear(nodeId: string): Promise<NoteEntry[]>
+  }
+  conversations: {
+    list(characterId?: string): Promise<Conversation[]>
+    append(input: {
+      conversationId?: string
+      characterId: string
+      sourceId?: string
+      message: { role: 'user' | 'assistant'; content: string; emotion?: string }
+    }): Promise<Conversation>
+    rename(id: string, title: string): Promise<Conversation[]>
+    remove(id: string): Promise<Conversation[]>
   }
   events: {
     subscribe(listener: (event: import('./channels').StudyEvent) => void): () => void
