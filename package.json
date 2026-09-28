@@ -1,6 +1,6 @@
 {
   "name": "study-in-gal",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "StudyInGal - 学习×Galgame 桌面学习系统（论文/教材库、伴学娘、学习工具、云盘同步、创意工坊）",
   "main": "./out/main/index.js",
   "author": "muzirin",
