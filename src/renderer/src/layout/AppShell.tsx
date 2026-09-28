@@ -24,6 +24,7 @@ import { TitleBar } from './TitleBar'
 import { NavPanel } from './NavPanel'
 import { RouteTransition } from '../components/RouteTransition'
 import { CommandPalette } from '../components/CommandPalette'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { GROUP_ORDER, MODULES, pathToModuleId, type ModuleDef } from '../modules/registry'
 import { useAppStore } from '../state/appStore'
 
@@ -177,7 +178,9 @@ export function AppShell() {
             className="sig-scroll-thin"
           >
             <RouteTransition>
-              <Outlet />
+              <ErrorBoundary>
+                <Outlet />
+              </ErrorBoundary>
             </RouteTransition>
           </Box>
         </Box>

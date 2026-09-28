@@ -113,6 +113,7 @@ export function LibraryPage() {
   const [bulkDialog, setBulkDialog] = useState<null | 'folder' | 'tag'>(null)
   const [bulkFolderId, setBulkFolderId] = useState('')
   const [bulkTagName, setBulkTagName] = useState('')
+  const [visibleCount, setVisibleCount] = useState(48)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -132,7 +133,12 @@ export function LibraryPage() {
     setSeriesFilter(null)
     setCategoryFilter(null)
     setFavoriteOnly(false)
+    setVisibleCount(48)
   }, [load])
+
+  useEffect(() => {
+    setVisibleCount(48)
+  }, [query, tagFilter, folderFilter, seriesFilter, categoryFilter, favoriteOnly, sort])
 
   const nodes = useMemo(() => {
     if (!snapshot) return []
@@ -659,7 +665,7 @@ export function LibraryPage() {
                   layout === 'grid' ? { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' } : '1fr'
               }}
             >
-              {nodes.map((node) => (
+              {nodes.slice(0, visibleCount).map((node) => (
                 <Card key={node.id} elevation={0} sx={{ position: 'relative', overflow: 'hidden' }}>
                   <CardActionArea
                     onClick={() => (selectionMode ? toggleSelected(node.id) : navigate(`/reader/${kind}/${node.id}`))}
@@ -721,6 +727,14 @@ export function LibraryPage() {
               ))}
             </Box>
           )}
+
+          {nodes.length > visibleCount ? (
+            <Stack alignItems="center" sx={{ mt: 2 }}>
+              <Button variant="outlined" onClick={() => setVisibleCount((value) => value + 48)}>
+                显示更多（还有 {nodes.length - visibleCount} 项）
+              </Button>
+            </Stack>
+          ) : null}
         </Box>
       </Box>
 
