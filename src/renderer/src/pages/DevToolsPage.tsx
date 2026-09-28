@@ -96,6 +96,14 @@ function TerminalPanel() {
     toast('success', '终端已重启')
   }
 
+  const send = (command: string): void => {
+    if (!sessionRef.current) return
+    void api.terminal.write(sessionRef.current, `${command}\r`)
+    termRef.current?.focus()
+  }
+
+  const presets = ['npm run typecheck', 'npm run build', 'git status', 'git log --oneline -5', 'npm outdated']
+
   return (
     <Section
       title="内嵌 CLI 终端"
@@ -118,6 +126,11 @@ function TerminalPanel() {
       <Alert severity="info" icon={false} sx={{ mb: 2 }}>
         出于跨平台稳定性考虑，这里使用管道式 Shell（非伪终端）。适合运行 <code>npm</code>、<code>git</code>、<code>python</code> 等命令。
       </Alert>
+      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+        {presets.map((preset) => (
+          <Chip key={preset} size="small" variant="outlined" label={preset} clickable onClick={() => send(preset)} />
+        ))}
+      </Stack>
       <Box ref={containerRef} sx={{ height: 460, borderRadius: 2, overflow: 'hidden', bgcolor: '#14121a', p: 1 }} />
     </Section>
   )

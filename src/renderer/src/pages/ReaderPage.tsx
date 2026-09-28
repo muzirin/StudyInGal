@@ -32,6 +32,8 @@ import StickyNote2RoundedIcon from '@mui/icons-material/StickyNote2Rounded'
 import ListAltRoundedIcon from '@mui/icons-material/ListAltRounded'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
+import AddRoundedIcon from '@mui/icons-material/AddRounded'
+import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
@@ -71,6 +73,8 @@ export function ReaderPage() {
   const toast = useAppStore((state) => state.toast)
   const openAsk = useAppStore((state) => state.openAsk)
   const setCrumb = useAppStore((state) => state.setCrumb)
+  const patchSettings = useAppStore((state) => state.patchSettings)
+  const settings = useAppStore((state) => state.settings)
   const compact = useMediaQuery('(max-width: 1200px)')
 
   const [document, setDocument] = useState<DocumentContent | null>(null)
@@ -288,6 +292,27 @@ export function ReaderPage() {
               <ToggleButton value="rendered">渲染</ToggleButton>
               <ToggleButton value="source">源码</ToggleButton>
             </ToggleButtonGroup>
+            <Stack direction="row" spacing={0} alignItems="center" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 999, px: 0.5 }}>
+              <Tooltip title="缩小字号">
+                <IconButton
+                  size="small"
+                  onClick={() => void patchSettings({ editor: { ...(settings?.editor as object), fontSize: Math.max(11, (settings?.editor.fontSize ?? 15) - 1) } })}
+                >
+                  <RemoveRoundedIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+              <Typography variant="caption" sx={{ minWidth: 26, textAlign: 'center' }}>
+                {settings?.editor.fontSize ?? 15}
+              </Typography>
+              <Tooltip title="放大字号">
+                <IconButton
+                  size="small"
+                  onClick={() => void patchSettings({ editor: { ...(settings?.editor as object), fontSize: Math.min(28, (settings?.editor.fontSize ?? 15) + 1) } })}
+                >
+                  <AddRoundedIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            </Stack>
             <Tooltip title="让 AI 生成本章黑板笔记">
               <span>
                 <Button
@@ -424,7 +449,7 @@ export function ReaderPage() {
             </Alert>
           ) : null}
           {mode === 'rendered' ? (
-            <MarkdownView>{readableText}</MarkdownView>
+            <MarkdownView fontSize={settings?.editor.fontSize}>{readableText}</MarkdownView>
           ) : (
             <Box
               component="pre"
