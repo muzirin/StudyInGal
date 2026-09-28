@@ -98,10 +98,9 @@ npm run build:linux  # 打包 Linux AppImage / deb
 > $env:ELECTRON_RUN_AS_NODE = $null
 > npm run dev
 > ```
-
 ## 目录结构
 
-```
+```text
 src/
 ├── main/                 # Electron 主进程
 │   ├── ipc/              # IPC 路由（88 个通道）
@@ -122,6 +121,8 @@ src/
 │   └── theme/            # MD3 配色与主题构建
 └── shared/               # 主进程 / 渲染进程共享的类型与 IPC 契约
 ```
+
+更多设计细节见 [docs/architecture.md](./docs/architecture.md)。
 
 ## 数据与隐私
 
