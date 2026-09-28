@@ -52,4 +52,7 @@ publish:
   - provider: github
     owner: muzirin
     repo: StudyInGal
-    releaseType: draft
+    # 直接发布（不是 draft）：draft 模式下，一旦 release 已被发布，
+    # 后续平台（或重跑）的 --publish always 会因类型不匹配而跳过上传，
+    # 导致同一版本被拆成多个 release。标题与说明由工作流后续统一写入。
+    releaseType: release
