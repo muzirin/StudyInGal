@@ -118,6 +118,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
     enabled: false,
     baseUrl: ''
   },
+  desktop: {
+    trayEnabled: true,
+    closeToTray: false,
+    globalAskShortcut: 'CommandOrControl+Shift+Space'
+  },
   workshop: {
     registryUrl: ''
   },

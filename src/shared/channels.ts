@@ -177,3 +177,4 @@ export type StudyEvent =
   | { type: 'library-changed'; payload: { kind: string } }
   | { type: 'window-state'; payload: { maximized: boolean; fullscreen: boolean; focused: boolean } }
   | { type: 'history-changed'; payload: { reason: string } }
+  | { type: 'open-ask'; payload: { reason: string } }

@@ -580,6 +580,11 @@ export interface AppSettings {
     enabled: boolean
     baseUrl: string
   }
+  desktop: {
+    trayEnabled: boolean
+    closeToTray: boolean
+    globalAskShortcut: string
+  }
   workshop: {
     registryUrl: string
   }

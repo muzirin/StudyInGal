@@ -26,6 +26,7 @@ import TerminalRoundedIcon from '@mui/icons-material/TerminalRounded'
 import InfoRoundedIcon from '@mui/icons-material/InfoRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import ShieldRoundedIcon from '@mui/icons-material/ShieldRounded'
+import DesktopWindowsRoundedIcon from '@mui/icons-material/DesktopWindowsRounded'
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded'
 import { useAppStore } from '../../state/appStore'
 import { EmptyState } from '../../components/Section'
@@ -39,6 +40,7 @@ import { SyncSection } from './SyncSection'
 import { DeveloperSection } from './DeveloperSection'
 import { AboutSection } from './AboutSection'
 import { PrivacySection } from './PrivacySection'
+import { DesktopSection } from './DesktopSection'
 
 interface SettingSectionDef {
   id: string
@@ -106,6 +108,13 @@ export function SettingsPage() {
         hint: '自动同步与默认挂载',
         icon: <CloudSyncRoundedIcon fontSize="small" />,
         render: () => <SyncSection />
+      },
+      {
+        id: 'desktop',
+        label: '桌面集成',
+        hint: '托盘、全局快捷键、窗口',
+        icon: <DesktopWindowsRoundedIcon fontSize="small" />,
+        render: () => <DesktopSection />
       },
       {
         id: 'developer',

@@ -48,6 +48,8 @@ export function App() {
         toast(typed.payload.severity as never, String(typed.payload.message ?? ''))
       } else if (typed.type === 'companion-bubble' || typed.type === 'proactive') {
         toast('info', String(typed.payload.text ?? ''))
+      } else if (typed.type === 'open-ask') {
+        useAppStore.getState().openAsk()
       }
     })
     return unsubscribe

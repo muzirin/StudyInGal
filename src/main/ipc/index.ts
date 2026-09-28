@@ -25,6 +25,7 @@ import * as history from '../services/history'
 import * as notes from '../services/notes'
 import * as conversations from '../services/conversations'
 import * as focus from '../services/focus'
+import { refreshGlobalShortcut, refreshTray } from '../services/tray'
 import { broadcastWindowState } from '../window'
 
 type Payload = Record<string, unknown>
@@ -164,8 +165,18 @@ const handlers: Record<string, Handler> = {
 
   /* -------------------------------- settings -------------------------------- */
   [CHANNELS.settings.get]: () => settingsService.getSettings(),
-  [CHANNELS.settings.update]: (payload) => settingsService.updateSettings(payload as Partial<AppSettings>),
-  [CHANNELS.settings.reset]: () => settingsService.resetSettings(),
+  [CHANNELS.settings.update]: (payload) => {
+    const next = settingsService.updateSettings(payload as Partial<AppSettings>)
+    refreshTray()
+    refreshGlobalShortcut()
+    return next
+  },
+  [CHANNELS.settings.reset]: () => {
+    const next = settingsService.resetSettings()
+    refreshTray()
+    refreshGlobalShortcut()
+    return next
+  },
 
   /* --------------------------------- library -------------------------------- */
   [CHANNELS.library.snapshot]: (payload) => libraryService.getSnapshot(payload.kind as LibraryKind),

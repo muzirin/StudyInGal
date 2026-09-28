@@ -2,11 +2,12 @@ import { app, BrowserWindow, session } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { registerIpc } from './ipc/index'
-import { createWindow } from './window'
+import { createWindow, markQuitting } from './window'
 import { getSettings } from './services/settings'
 import { killAllTerminals } from './services/terminal'
 import { captureError } from './services/errors'
 import { startScheduler, stopScheduler } from './services/scheduler'
+import { disposeTray, refreshGlobalShortcut, refreshTray } from './services/tray'
 
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
@@ -42,6 +43,8 @@ if (!gotLock) {
 
     registerIpc()
     startScheduler()
+    refreshTray()
+    refreshGlobalShortcut()
 
     const window = createWindow()
     if (getSettings().developer.openDevToolsOnStart) {
@@ -80,12 +83,16 @@ if (!gotLock) {
   })
 
   app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit()
+    const settings = getSettings()
+    const stayInTray = settings.desktop.trayEnabled && settings.desktop.closeToTray
+    if (!stayInTray && process.platform !== 'darwin') app.quit()
   })
 
   app.on('before-quit', () => {
+    markQuitting()
     killAllTerminals()
     stopScheduler()
+    disposeTray()
   })
 }
 

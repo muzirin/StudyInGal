@@ -2,9 +2,16 @@
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 import { emitEvent } from './lib/events'
+import { getSettings } from './services/settings'
 import { attachWindowStatePersistence, loadWindowState } from './services/windowState'
 
 const isMac = process.platform === 'darwin'
+
+let isQuitting = false
+
+export const markQuitting = (): void => {
+  isQuitting = true
+}
 
 export function broadcastWindowState(window: BrowserWindow): void {
   if (window.isDestroyed()) return
@@ -56,6 +63,15 @@ export function createWindow(): BrowserWindow {
   window.on('ready-to-show', () => {
     window.show()
     broadcastWindowState(window)
+  })
+
+  window.on('close', (event) => {
+    if (isQuitting) return
+    const settings = getSettings()
+    if (settings.desktop.closeToTray && settings.desktop.trayEnabled) {
+      event.preventDefault()
+      window.hide()
+    }
   })
 
   attachWindowStatePersistence(window)
