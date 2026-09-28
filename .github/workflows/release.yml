@@ -53,6 +53,7 @@ jobs:
       # 三平台并行时，electron-builder 会各自尝试创建 release，可能被拆成多个；
       # 这里先统一创建/复用同一个（已发布）release，避免竞态。
       - name: Ensure release exists
+        shell: bash
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "StudyInGal $GITHUB_REF_NAME" --notes "Release $GITHUB_REF_NAME"
         env:
