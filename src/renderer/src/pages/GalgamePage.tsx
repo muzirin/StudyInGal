@@ -17,6 +17,8 @@ import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded'
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded'
 import SaveRoundedIcon from '@mui/icons-material/SaveRounded'
+import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded'
+import Tooltip from '@mui/material/Tooltip'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
@@ -235,6 +237,21 @@ export function GalgamePage() {
                     >
                       导出存档
                     </Button>
+                    <Tooltip title="导出为 Markdown（方便复习与分享）">
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<FileDownloadRoundedIcon />}
+                        onClick={async () => {
+                          const target = await api.dialogs.saveFile({ defaultPath: `${script.title}.md` })
+                          if (!target) return
+                          const result = await api.gal.exportMarkdown(script.id, target)
+                          toast('success', `已导出 ${result.lines} 行剧本`)
+                        }}
+                      >
+                        Markdown
+                      </Button>
+                    </Tooltip>
                     <IconButton
                       size="small"
                       onClick={async () => {

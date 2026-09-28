@@ -71,7 +71,8 @@ export const CHANNELS = {
     getScript: 'gal:getScript',
     saveScript: 'gal:saveScript',
     deleteScript: 'gal:deleteScript',
-    exportSave: 'gal:exportSave'
+    exportSave: 'gal:exportSave',
+    exportMarkdown: 'gal:exportMarkdown'
   },
   archive: {
     list: 'archive:list',
@@ -133,7 +134,8 @@ export const CHANNELS = {
     list: 'notes:list',
     upsert: 'notes:upsert',
     remove: 'notes:remove',
-    clear: 'notes:clear'
+    clear: 'notes:clear',
+    export: 'notes:export'
   },
   conversations: {
     list: 'conversations:list',

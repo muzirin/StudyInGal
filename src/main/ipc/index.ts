@@ -324,8 +324,7 @@ const handlers: Record<string, Handler> = {
   [CHANNELS.gal.deleteScript]: (payload) => {
     scripts.deleteScript(asString(payload.id))
   },
-  [CHANNELS.gal.exportSave]: async (payload) => {
-    const script = scripts.getScript(asString(payload.scriptId))
+  [CHANNELS.gal.exportSave]: async (payload) => {    const script = scripts.getScript(asString(payload.scriptId))
     if (!script) throw new Error('剧本不存在')
     const save = archive.upsertSave({
       title: script.title,
@@ -344,6 +343,32 @@ const handlers: Record<string, Handler> = {
       storage = (cloud.getMount(mountId)?.kind ?? 'local') as typeof save.storage
     }
     return archive.upsertSave({ id: save.id, dataPath: target, storage, mountId })
+  },
+  [CHANNELS.gal.exportMarkdown]: async (payload) => {
+    const script = scripts.getScript(asString(payload.id))
+    if (!script) throw new Error('剧本不存在')
+    const target = asString(payload.target)
+    const speakerLabel = (line: { speaker: string }): string =>
+      line.speaker === 'character' ? '伴学娘' : line.speaker === 'user' ? '我' : ''
+    const blocks: string[] = []
+    const perScene = 12
+    for (let start = 0; start < script.lines.length; start += perScene) {
+      const sceneIndex = Math.floor(start / perScene) + 1
+      blocks.push(`## 第 ${sceneIndex} 幕`, '')
+      for (const line of script.lines.slice(start, start + perScene)) {
+        if (line.speaker === 'narration') blocks.push(`*（${line.text}）*`, '')
+        else blocks.push(`**${speakerLabel(line)}**：${line.text}`, '')
+      }
+    }
+    const markdown = [
+      `# ${script.title}`,
+      '',
+      `> 由 StudyInGal 生成 · 共 ${script.lines.length} 行 · 模型 ${script.model ?? '未知'}`,
+      '',
+      ...blocks
+    ].join('\n')
+    await writeFile(target, markdown, 'utf8')
+    return { path: target, lines: script.lines.length }
   },
 
   /* -------------------------------- archive --------------------------------- */
@@ -441,6 +466,40 @@ const handlers: Record<string, Handler> = {
   [CHANNELS.notes.upsert]: (payload) => notes.upsertNote(payload as never),
   [CHANNELS.notes.remove]: (payload) => notes.removeNote(asString(payload.id)),
   [CHANNELS.notes.clear]: (payload) => notes.clearNotes(asString(payload.nodeId)),
+  [CHANNELS.notes.export]: async (payload) => {
+    const nodeId = payload.nodeId ? asString(payload.nodeId) : undefined
+    const list = notes.listNotes(nodeId)
+    const target = asString(payload.target)
+    const groups = new Map<string, typeof list>()
+    for (const note of list) {
+      if (!groups.has(note.nodeId)) groups.set(note.nodeId, [])
+      groups.get(note.nodeId)?.push(note)
+    }
+    const body: string[] = [
+      '# StudyInGal 笔记导出',
+      '',
+      `> 导出时间：${new Date().toLocaleString('zh-CN')} · 共 ${list.length} 条`,
+      ''
+    ]
+    for (const [groupId, entries] of groups) {
+      const documentTitle = libraryService.findNode(groupId)?.node.title
+      body.push(`## ${documentTitle ?? groupId}`, '')
+      for (const note of entries) {
+        body.push(
+          `### ${note.title}`,
+          '',
+          `*类型：${note.kind === 'ai' ? 'AI 精读' : note.kind === 'quote' ? '原文引用' : '随手笔记'}${
+            note.chapterTitle ? ` · 章节：${note.chapterTitle}` : ''
+          } · ${new Date(note.updatedAt).toLocaleString('zh-CN')}*`,
+          '',
+          note.content,
+          ''
+        )
+      }
+    }
+    await writeFile(target, body.join('\n'), 'utf8')
+    return { path: target, count: list.length }
+  },
 
   /* ----------------------------- conversations ------------------------------ */
   [CHANNELS.conversations.list]: (payload) =>

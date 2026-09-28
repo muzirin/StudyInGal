@@ -136,6 +136,7 @@ export interface StudyApi {
     saveScript(script: Partial<GalScript> & { id?: string }): Promise<GalScript>
     deleteScript(id: string): Promise<void>
     exportSave(scriptId: string, mountId: string | null): Promise<ArchiveSave>
+    exportMarkdown(id: string, target: string): Promise<{ path: string; lines: number }>
   }
   archive: {
     list(): Promise<ArchiveSave[]>
@@ -198,6 +199,7 @@ export interface StudyApi {
     upsert(entry: Partial<NoteEntry> & { nodeId: string }): Promise<NoteEntry>
     remove(id: string): Promise<NoteEntry[]>
     clear(nodeId: string): Promise<NoteEntry[]>
+    export(nodeId: string | null, target: string): Promise<{ path: string; count: number }>
   }
   conversations: {
     list(characterId?: string): Promise<Conversation[]>

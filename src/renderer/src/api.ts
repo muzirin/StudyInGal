@@ -77,7 +77,8 @@ export const api: StudyApi = {
     getScript: (id) => invoke(CHANNELS.gal.getScript, { id }),
     saveScript: (script) => invoke(CHANNELS.gal.saveScript, script),
     deleteScript: (id) => invoke(CHANNELS.gal.deleteScript, { id }),
-    exportSave: (scriptId, mountId) => invoke(CHANNELS.gal.exportSave, { scriptId, mountId })
+    exportSave: (scriptId, mountId) => invoke(CHANNELS.gal.exportSave, { scriptId, mountId }),
+    exportMarkdown: (id, target) => invoke(CHANNELS.gal.exportMarkdown, { id, target })
   },
   archive: {
     list: () => invoke(CHANNELS.archive.list),
@@ -139,7 +140,8 @@ export const api: StudyApi = {
     list: (nodeId) => invoke(CHANNELS.notes.list, { nodeId }),
     upsert: (entry) => invoke(CHANNELS.notes.upsert, entry),
     remove: (id) => invoke(CHANNELS.notes.remove, { id }),
-    clear: (nodeId) => invoke(CHANNELS.notes.clear, { nodeId })
+    clear: (nodeId) => invoke(CHANNELS.notes.clear, { nodeId }),
+    export: (nodeId, target) => invoke(CHANNELS.notes.export, { nodeId, target })
   },
   conversations: {
     list: (characterId) => invoke(CHANNELS.conversations.list, { characterId }),

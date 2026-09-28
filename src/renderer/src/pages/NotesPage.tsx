@@ -24,6 +24,7 @@ import EditNoteRoundedIcon from '@mui/icons-material/EditNoteRounded'
 import FormatQuoteRoundedIcon from '@mui/icons-material/FormatQuoteRounded'
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
 import FolderRoundedIcon from '@mui/icons-material/FolderRounded'
+import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
@@ -178,6 +179,20 @@ export function NotesPage() {
           subtitle="精读笔记、随手笔记与原文引用都保存在本机 notes.json"
           action={
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<FileDownloadRoundedIcon />}
+                disabled={notes.length === 0}
+                onClick={async () => {
+                  const target = await api.dialogs.saveFile({ defaultPath: 'study-in-gal-notes.md' })
+                  if (!target) return
+                  const result = await api.notes.export(activeNode === 'all' ? null : activeNode, target)
+                  toast('success', `已导出 ${result.count} 条笔记`)
+                }}
+              >
+                导出 Markdown
+              </Button>
               <TextField
                 size="small"
                 placeholder="搜索笔记内容"
