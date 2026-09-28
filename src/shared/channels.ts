@@ -8,7 +8,8 @@ export const CHANNELS = {
     windowState: 'app:windowState',
     quit: 'app:quit',
     devtools: 'app:devtools',
-    relaunch: 'app:relaunch'
+    relaunch: 'app:relaunch',
+    checkUpdate: 'app:checkUpdate'
   },
   dialogs: {
     pickFiles: 'dialogs:pickFiles',
@@ -46,7 +47,8 @@ export const CHANNELS = {
     listRemote: 'cloud:listRemote',
     sync: 'cloud:sync',
     upload: 'cloud:upload',
-    download: 'cloud:download'
+    download: 'cloud:download',
+    log: 'cloud:log'
   },
   ai: {
     listProviders: 'ai:listProviders',

@@ -1,5 +1,19 @@
 import { useMemo, useState } from 'react'
-import { Box, Chip, List, ListItemButton, ListItemIcon, ListItemText, Stack, Typography, useMediaQuery } from '@mui/material'
+import {
+  Box,
+  Chip,
+  IconButton,
+  InputAdornment,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+  useMediaQuery
+} from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
 import PaletteRoundedIcon from '@mui/icons-material/PaletteRounded'
 import ExploreRoundedIcon from '@mui/icons-material/ExploreRounded'
@@ -10,7 +24,11 @@ import EditNoteRoundedIcon from '@mui/icons-material/EditNoteRounded'
 import CloudSyncRoundedIcon from '@mui/icons-material/CloudSyncRounded'
 import TerminalRoundedIcon from '@mui/icons-material/TerminalRounded'
 import InfoRoundedIcon from '@mui/icons-material/InfoRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import ShieldRoundedIcon from '@mui/icons-material/ShieldRounded'
+import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded'
 import { useAppStore } from '../../state/appStore'
+import { EmptyState } from '../../components/Section'
 import { AppearanceSection } from './AppearanceSection'
 import { NavigationSection } from './NavigationSection'
 import { AiSection } from './AiSection'
@@ -20,7 +38,7 @@ import { EditorSection } from './EditorSection'
 import { SyncSection } from './SyncSection'
 import { DeveloperSection } from './DeveloperSection'
 import { AboutSection } from './AboutSection'
-import { EmptyState } from '../../components/Section'
+import { PrivacySection } from './PrivacySection'
 
 interface SettingSectionDef {
   id: string
@@ -33,8 +51,10 @@ interface SettingSectionDef {
 export function SettingsPage() {
   const theme = useTheme()
   const settings = useAppStore((state) => state.settings)
+  const resetSettings = useAppStore((state) => state.resetSettings)
   const compact = useMediaQuery('(max-width: 1100px)')
   const [active, setActive] = useState('appearance')
+  const [query, setQuery] = useState('')
 
   const sections = useMemo<SettingSectionDef[]>(
     () => [
@@ -95,9 +115,16 @@ export function SettingsPage() {
         render: () => <DeveloperSection />
       },
       {
+        id: 'privacy',
+        label: '隐私与数据',
+        hint: '数据位置、导出、清理',
+        icon: <ShieldRoundedIcon fontSize="small" />,
+        render: () => <PrivacySection />
+      },
+      {
         id: 'about',
         label: '关于',
-        hint: '版本、许可、仓库',
+        hint: '版本、许可、更新检查',
         icon: <InfoRoundedIcon fontSize="small" />,
         render: () => <AboutSection />
       }
@@ -105,62 +132,50 @@ export function SettingsPage() {
     []
   )
 
+  const filteredSections = useMemo(() => {
+    const keyword = query.trim().toLowerCase()
+    if (!keyword) return sections
+    return sections.filter((section) => `${section.label} ${section.hint}`.toLowerCase().includes(keyword))
+  }, [sections, query])
+
   if (!settings) {
     return <EmptyState title="设置尚未加载" description="正在读取本地设置，请稍候。" />
   }
 
-  const current = sections.find((section) => section.id === active) ?? sections[0]
-
-  const navList = (
-    <List dense disablePadding>
-      {sections.map((section) => {
-        const isActive = section.id === current.id
-        return (
-          <ListItemButton
-            key={section.id}
-            selected={isActive}
-            onClick={() => setActive(section.id)}
-            sx={{
-              borderRadius: 3,
-              mb: 0.5,
-              minHeight: 46,
-              '&.Mui-selected': {
-                bgcolor: alpha(theme.palette.primary.main, 0.14),
-                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) }
-              }
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 34, color: isActive ? 'primary.main' : 'text.secondary' }}>
-              {section.icon}
-            </ListItemIcon>
-            <ListItemText
-              primary={section.label}
-              secondary={section.hint}
-              primaryTypographyProps={{ variant: 'body2', fontWeight: isActive ? 700 : 500 }}
-              secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
-            />
-          </ListItemButton>
-        )
-      })}
-    </List>
-  )
+  const current = filteredSections.find((section) => section.id === active) ?? filteredSections[0] ?? sections[0]
 
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '236px minmax(0, 1fr)' }, gap: 2.5, alignItems: 'start' }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '244px minmax(0, 1fr)' }, gap: 2.5, alignItems: 'start' }}>
       {compact ? (
-        <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }} className="sig-scroll-thin">
-          {sections.map((section) => (
-            <Chip
-              key={section.id}
-              icon={<Box sx={{ display: 'flex', '& svg': { fontSize: 16 } }}>{section.icon}</Box>}
-              label={section.label}
-              clickable
-              color={section.id === current.id ? 'primary' : 'default'}
-              variant={section.id === current.id ? 'filled' : 'outlined'}
-              onClick={() => setActive(section.id)}
-              sx={{ flexShrink: 0 }}
-            />
-          ))}
+        <Stack spacing={1}>
+          <TextField
+            size="small"
+            placeholder="搜索设置项…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchRoundedIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              sx: { borderRadius: 999 }
+            }}
+          />
+          <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }} className="sig-scroll-thin">
+            {filteredSections.map((section) => (
+              <Chip
+                key={section.id}
+                icon={<Box sx={{ display: 'flex', '& svg': { fontSize: 16 } }}>{section.icon}</Box>}
+                label={section.label}
+                clickable
+                color={section.id === current.id ? 'primary' : 'default'}
+                variant={section.id === current.id ? 'filled' : 'outlined'}
+                onClick={() => setActive(section.id)}
+                sx={{ flexShrink: 0 }}
+              />
+            ))}
+          </Stack>
         </Stack>
       ) : (
         <Box
@@ -174,10 +189,70 @@ export function SettingsPage() {
             bgcolor: alpha(theme.palette.background.paper, 0.7)
           }}
         >
-          <Typography variant="caption" fontWeight={700} letterSpacing={1} color="text.disabled" sx={{ pl: 1.5, py: 1, display: 'block' }}>
-            设置分类
-          </Typography>
-          {navList}
+          <Stack direction="row" spacing={0.75} alignItems="center" sx={{ px: 1.5, pt: 1, pb: 0.75 }}>
+            <Typography variant="caption" fontWeight={700} letterSpacing={1} color="text.disabled" sx={{ flexGrow: 1 }}>
+              设置分类
+            </Typography>
+            <Tooltip title="恢复默认设置">
+              <IconButton size="small" onClick={() => void resetSettings()}>
+                <RestartAltRoundedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+          <Box sx={{ px: 1, pb: 1 }}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="搜索设置项…"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchRoundedIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+                sx: { borderRadius: 999, bgcolor: 'var(--sig-surface-variant)' }
+              }}
+            />
+          </Box>
+          {filteredSections.length === 0 ? (
+            <Typography variant="caption" color="text.secondary" sx={{ px: 2, pb: 1.5, display: 'block' }}>
+              没有匹配的设置分类
+            </Typography>
+          ) : (
+            <List dense disablePadding>
+              {filteredSections.map((section) => {
+                const isActive = section.id === current.id
+                return (
+                  <ListItemButton
+                    key={section.id}
+                    selected={isActive}
+                    onClick={() => setActive(section.id)}
+                    sx={{
+                      borderRadius: 3,
+                      mb: 0.5,
+                      minHeight: 46,
+                      '&.Mui-selected': {
+                        bgcolor: alpha(theme.palette.primary.main, 0.14),
+                        '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) }
+                      }
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 34, color: isActive ? 'primary.main' : 'text.secondary' }}>
+                      {section.icon}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={section.label}
+                      secondary={section.hint}
+                      primaryTypographyProps={{ variant: 'body2', fontWeight: isActive ? 700 : 500 }}
+                      secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
+                    />
+                  </ListItemButton>
+                )
+              })}
+            </List>
+          )}
         </Box>
       )}
 

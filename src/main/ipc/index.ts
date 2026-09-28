@@ -100,6 +100,40 @@ const handlers: Record<string, Handler> = {
     app.relaunch()
     app.exit(0)
   },
+  [CHANNELS.app.checkUpdate]: async () => {
+    const current = app.getVersion()
+    try {
+      const response = await fetch(`https://api.github.com/repos/muzirin/StudyInGal/releases/latest`, {
+        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'StudyInGal' }
+      })
+      if (!response.ok) {
+        return { ok: false, current, latest: null, hasUpdate: false, url: null, message: `GitHub ?? ${response.status}` }
+      }
+      const data = (await response.json()) as { tag_name?: string; html_url?: string; published_at?: string; body?: string }
+      const latest = (data.tag_name ?? '').replace(/^v/, '')
+      const toParts = (value: string): number[] => value.split('.').map((part) => Number.parseInt(part, 10) || 0)
+      const [a, b] = [toParts(latest), toParts(current.replace(/^v/, ''))]
+      let hasUpdate = false
+      for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+        if ((a[index] ?? 0) > (b[index] ?? 0)) {
+          hasUpdate = true
+          break
+        }
+        if ((a[index] ?? 0) < (b[index] ?? 0)) break
+      }
+      return {
+        ok: true,
+        current,
+        latest: data.tag_name ?? latest,
+        hasUpdate,
+        url: data.html_url ?? null,
+        publishedAt: data.published_at ?? null,
+        message: hasUpdate ? '?????' : '??????'
+      }
+    } catch (error) {
+      return { ok: false, current, latest: null, hasUpdate: false, url: null, message: (error as Error).message }
+    }
+  },
   [CHANNELS.app.quit]: () => {
     app.quit()
   },
@@ -224,6 +258,7 @@ const handlers: Record<string, Handler> = {
   [CHANNELS.cloud.test]: (payload) => cloud.testMount(asString(payload.id)),
   [CHANNELS.cloud.listRemote]: (payload) => cloud.listRemote(asString(payload.id), asString(payload.path, '/')),
   [CHANNELS.cloud.sync]: (payload) => cloud.syncMount(asString(payload.id)),
+  [CHANNELS.cloud.log]: () => cloud.listSyncLog(),
   [CHANNELS.cloud.upload]: (payload) =>
     cloud.uploadToMount(asString(payload.id), asString(payload.localPath), asString(payload.remotePath)),
   [CHANNELS.cloud.download]: (payload) =>

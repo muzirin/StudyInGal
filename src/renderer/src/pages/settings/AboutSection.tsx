@@ -1,7 +1,10 @@
-import { Button, Divider, Stack, Typography, Box } from '@mui/material'
+import { useState } from 'react'
+import { Alert, Button, Divider, Stack, Typography, Box } from '@mui/material'
 import ScienceRoundedIcon from '@mui/icons-material/ScienceRounded'
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded'
 import BugReportRoundedIcon from '@mui/icons-material/BugReportRounded'
+import SystemUpdateAltRoundedIcon from '@mui/icons-material/SystemUpdateAltRounded'
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
 import { api } from '../../api'
 import { useAppStore } from '../../state/appStore'
 import { Section } from '../../components/Section'
@@ -9,13 +12,33 @@ import { GITHUB_URL } from '@shared/constants'
 
 export function AboutSection() {
   const info = useAppStore((state) => state.info)
-  const settings = useAppStore((state) => state.settings)
-  const resetSettings = useAppStore((state) => state.resetSettings)
   const toast = useAppStore((state) => state.toast)
+  const resetSettings = useAppStore((state) => state.resetSettings)
+  const [checking, setChecking] = useState(false)
+  const [update, setUpdate] = useState<{ ok: boolean; hasUpdate: boolean; latest: string | null; url: string | null; message: string } | null>(null)
+
+  const check = async (): Promise<void> => {
+    setChecking(true)
+    try {
+      const result = await api.app.checkUpdate()
+      setUpdate(result)
+      toast(result.hasUpdate ? 'info' : result.ok ? 'success' : 'warning', result.message)
+    } finally {
+      setChecking(false)
+    }
+  }
 
   return (
     <>
-      <Section title="版本信息" subtitle={info ? `${info.name} ${info.version}` : '读取中…'}>
+      <Section
+        title="版本信息"
+        subtitle={info ? `${info.name} ${info.version}` : '读取中…'}
+        action={
+          <Button size="small" variant="outlined" startIcon={<SystemUpdateAltRoundedIcon />} disabled={checking} onClick={() => void check()}>
+            {checking ? '检查中…' : '检查更新'}
+          </Button>
+        }
+      >
         <Stack spacing={1} sx={{ px: 2, pb: 2 }} divider={<Divider flexItem />}>
           {[
             ['版本', info?.version],
@@ -34,6 +57,21 @@ export function AboutSection() {
               </Typography>
             </Stack>
           ))}
+          {update ? (
+            <Alert
+              severity={update.hasUpdate ? 'info' : update.ok ? 'success' : 'warning'}
+              sx={{ mt: 1 }}
+              action={
+                update.hasUpdate && update.url ? (
+                  <Button size="small" endIcon={<OpenInNewRoundedIcon fontSize="inherit" />} onClick={() => void api.app.openExternal(update.url as string)}>
+                    前往下载
+                  </Button>
+                ) : undefined
+              }
+            >
+              {update.hasUpdate ? `发现新版本 ${update.latest}（当前 ${info?.version}）` : update.message}
+            </Alert>
+          ) : null}
         </Stack>
       </Section>
 
@@ -66,7 +104,6 @@ export function AboutSection() {
             onClick={async () => {
               await resetSettings()
               toast('success', '已恢复默认设置')
-              void settings
             }}
           >
             恢复默认设置

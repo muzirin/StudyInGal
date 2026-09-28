@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { JsonStore } from '../../lib/jsonStore'
-import { archiveDir, charactersDir, dataDir, libraryDir, scriptsDir } from '../../lib/paths'
+import { dataDir, archiveDir, charactersDir, libraryDir, scriptsDir } from '../../lib/paths'
 import { newId } from '../../lib/util'
 import { walkFiles } from '../../lib/fsutil'
 import { emitEvent } from '../../lib/events'
@@ -13,6 +13,28 @@ import { SmbAdapter } from './smb'
 import { QuarkAdapter } from './quark'
 
 const store = new JsonStore<CloudMount[]>(join(dataDir(), MOUNTS_FILE), [])
+const logStore = new JsonStore<SyncLogEntry[]>(join(dataDir(), 'syncLog.json'), [])
+
+export interface SyncLogEntry {
+  id: string
+  mountId: string
+  mountName: string
+  at: number
+  uploaded: number
+  downloaded: number
+  skipped: number
+  conflicts: number
+  ok: boolean
+  message: string
+}
+
+export function listSyncLog(): SyncLogEntry[] {
+  return logStore.read().slice(0, 100)
+}
+
+function recordLog(entry: Omit<SyncLogEntry, 'id'>): void {
+  logStore.update((list) => [{ id: `sync_${entry.at}_${Math.random().toString(36).slice(2, 7)}`, ...entry }, ...list].slice(0, 100))
+}
 
 export function listMounts(): CloudMount[] {
   return store.read()
@@ -178,5 +200,16 @@ export async function syncMount(id: string): Promise<SyncResult> {
 
   result.finishedAt = Date.now()
   store.update((list) => list.map((item) => (item.id === id ? { ...item, lastSyncAt: result.finishedAt, status: 'connected' } : item)))
+  recordLog({
+    mountId: id,
+    mountName: mount.name,
+    at: result.finishedAt,
+    uploaded: result.uploaded,
+    downloaded: result.downloaded,
+    skipped: result.skipped,
+    conflicts: result.conflicts.length,
+    ok: true,
+    message: '同步完成'
+  })
   return result
 }

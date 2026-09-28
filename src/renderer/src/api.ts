@@ -14,7 +14,8 @@ export const api: StudyApi = {
     windowState: () => invoke(CHANNELS.app.windowState),
     devtools: () => invoke(CHANNELS.app.devtools),
     relaunch: () => invoke(CHANNELS.app.relaunch),
-    quit: () => invoke(CHANNELS.app.quit)
+    quit: () => invoke(CHANNELS.app.quit),
+    checkUpdate: () => invoke(CHANNELS.app.checkUpdate)
   },
   dialogs: {
     pickFiles: (options) => invoke(CHANNELS.dialogs.pickFiles, options ?? {}),
@@ -51,6 +52,7 @@ export const api: StudyApi = {
     test: (id) => invoke(CHANNELS.cloud.test, { id }),
     listRemote: (id, path) => invoke(CHANNELS.cloud.listRemote, { id, path }),
     sync: (id) => invoke(CHANNELS.cloud.sync, { id }),
+    log: () => invoke(CHANNELS.cloud.log),
     upload: (id, localPath, remotePath) => invoke(CHANNELS.cloud.upload, { id, localPath, remotePath }),
     download: (id, remotePath, localPath) => invoke(CHANNELS.cloud.download, { id, remotePath, localPath })
   },

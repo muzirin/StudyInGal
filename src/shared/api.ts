@@ -51,6 +51,15 @@ export interface StudyApi {
     devtools(): Promise<void>
     relaunch(): Promise<void>
     quit(): Promise<void>
+    checkUpdate(): Promise<{
+      ok: boolean
+      current: string
+      latest: string | null
+      hasUpdate: boolean
+      url: string | null
+      publishedAt?: string | null
+      message: string
+    }>
   }
   dialogs: {
     pickFiles(options?: { filters?: { name: string; extensions: string[] }[]; multi?: boolean }): Promise<string[]>
@@ -87,6 +96,20 @@ export interface StudyApi {
     test(id: string): Promise<{ ok: boolean; message: string }>
     listRemote(id: string, path: string): Promise<CloudEntry[]>
     sync(id: string): Promise<SyncResult>
+    log(): Promise<
+      {
+        id: string
+        mountId: string
+        mountName: string
+        at: number
+        uploaded: number
+        downloaded: number
+        skipped: number
+        conflicts: number
+        ok: boolean
+        message: string
+      }[]
+    >
     upload(id: string, localPath: string, remotePath: string): Promise<void>
     download(id: string, remotePath: string, localPath: string): Promise<void>
   }

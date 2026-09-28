@@ -10,21 +10,32 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   IconButton,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
   MenuItem,
   Stack,
   TextField,
-  Typography
+  Typography,
+  useMediaQuery
 } from '@mui/material'
+import { alpha, useTheme } from '@mui/material/styles'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import SyncRoundedIcon from '@mui/icons-material/SyncRounded'
 import WifiTetheringRoundedIcon from '@mui/icons-material/WifiTetheringRounded'
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded'
 import FolderOpenRoundedIcon from '@mui/icons-material/FolderOpenRounded'
+import CloudRoundedIcon from '@mui/icons-material/CloudRounded'
+import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded'
+import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
 import { EmptyState, Section } from '../components/Section'
-import { formatDateTime } from '../lib/format'
+import { formatDateTime, formatRelative } from '../lib/format'
 import type { CloudEntry, CloudKind, CloudMount } from '@shared/types'
 
 const KIND_FIELDS: Record<CloudKind, { key: string; label: string; type?: string; placeholder?: string }[]> = {
@@ -49,18 +60,39 @@ const KIND_FIELDS: Record<CloudKind, { key: string; label: string; type?: string
   ]
 }
 
+interface SyncLog {
+  id: string
+  mountName: string
+  at: number
+  uploaded: number
+  downloaded: number
+  skipped: number
+  conflicts: number
+  ok: boolean
+  message: string
+}
+
+type Panel = 'mounts' | 'log' | 'auto'
+
 export function CloudPage() {
+  const theme = useTheme()
   const toast = useAppStore((state) => state.toast)
   const settings = useAppStore((state) => state.settings)
   const patchSettings = useAppStore((state) => state.patchSettings)
+  const compact = useMediaQuery('(max-width: 1100px)')
 
+  const [panel, setPanel] = useState<Panel>('mounts')
   const [mounts, setMounts] = useState<CloudMount[]>([])
+  const [log, setLog] = useState<SyncLog[]>([])
   const [draft, setDraft] = useState<(Partial<CloudMount> & { kind: CloudKind }) | null>(null)
   const [browsing, setBrowsing] = useState<{ mountId: string; path: string; entries: CloudEntry[] } | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [progress, setProgress] = useState<string | null>(null)
 
-  const refresh = async (): Promise<void> => setMounts(await api.cloud.list())
+  const refresh = async (): Promise<void> => {
+    setMounts(await api.cloud.list())
+    setLog((await api.cloud.log().catch(() => [])) as SyncLog[])
+  }
 
   useEffect(() => {
     void refresh()
@@ -77,149 +109,297 @@ export function CloudPage() {
     if (!draft) return
     const saved = await api.cloud.upsert(draft)
     setDraft(null)
-    setMounts(await api.cloud.list())
+    await refresh()
     toast('success', `已保存挂载：${saved.name}`)
   }
 
+  if (!settings) return null
+
+  const panelNav = (
+    <List dense disablePadding>
+      {(
+        [
+          { id: 'mounts' as Panel, label: '云盘挂载', hint: `${mounts.length} 个`, icon: <CloudRoundedIcon fontSize="small" /> },
+          { id: 'auto' as Panel, label: '自动同步', hint: settings.sync.autoSync ? `${settings.sync.intervalMinutes} 分钟` : '未开启', icon: <ScheduleRoundedIcon fontSize="small" /> },
+          { id: 'log' as Panel, label: '同步日志', hint: `${log.length} 条`, icon: <HistoryRoundedIcon fontSize="small" /> }
+        ]
+      ).map((item) => (
+        <ListItemButton
+          key={item.id}
+          selected={item.id === panel}
+          onClick={() => setPanel(item.id)}
+          sx={{
+            borderRadius: 3,
+            mb: 0.5,
+            minHeight: 46,
+            '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.14) }
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 34, color: item.id === panel ? 'primary.main' : 'text.secondary' }}>{item.icon}</ListItemIcon>
+          <ListItemText
+            primary={item.label}
+            secondary={item.hint}
+            primaryTypographyProps={{ variant: 'body2', fontWeight: item.id === panel ? 700 : 500 }}
+            secondaryTypographyProps={{ variant: 'caption', noWrap: true }}
+          />
+        </ListItemButton>
+      ))}
+    </List>
+  )
+
   return (
-    <Stack spacing={2.5}>
-      <Alert severity="warning">
-        夸克网盘适配器为实验性实现（基于网页端接口，需自行提供 Cookie），目前支持浏览与下载；上传请使用 WebDAV 或 SMB。
-      </Alert>
-
-      <Section
-        title={`云盘挂载 · ${mounts.length}`}
-        subtitle="SMB / WebDAV / 夸克网盘 / 本地目录，用于多端同步与存档托管"
-        action={
-          <Button size="small" variant="contained" startIcon={<AddRoundedIcon />} onClick={() => setDraft({ kind: 'webdav', name: '', remotePath: '/StudyInGal', enabled: true, config: {} })}>
-            新建挂载
-          </Button>
-        }
-      >
-        {mounts.length === 0 ? (
-          <EmptyState title="还没有挂载" description="推荐使用 WebDAV（坚果云、Nextcloud、Alist 等）或 SMB 作为同步后端。" />
-        ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(3, 1fr)' }, gap: 2, p: 2 }}>
-            {mounts.map((mount) => (
-              <Card key={mount.id} elevation={0}>
-                <CardContent>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="subtitle2" fontWeight={700} sx={{ flexGrow: 1 }} noWrap>
-                      {mount.name}
-                    </Typography>
-                    <Chip
-                      size="small"
-                      label={mount.status}
-                      color={mount.status === 'connected' ? 'success' : mount.status === 'error' ? 'error' : 'default'}
-                    />
-                  </Stack>
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    {mount.kind.toUpperCase()} · {mount.remotePath}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    上次同步：{formatDateTime(mount.lastSyncAt)}
-                  </Typography>
-                  {mount.lastError ? (
-                    <Typography variant="caption" color="error" display="block" sx={{ wordBreak: 'break-all' }}>
-                      {mount.lastError}
-                    </Typography>
-                  ) : null}
-                  <Stack direction="row" spacing={1} sx={{ mt: 1.5 }} flexWrap="wrap" useFlexGap>
-                    <Button
-                      size="small"
-                      startIcon={<WifiTetheringRoundedIcon />}
-                      onClick={async () => {
-                        const result = await api.cloud.test(mount.id)
-                        toast(result.ok ? 'success' : 'error', result.message)
-                        await refresh()
-                      }}
-                    >
-                      测试
-                    </Button>
-                    <Button
-                      size="small"
-                      startIcon={<SyncRoundedIcon />}
-                      disabled={busyId === mount.id}
-                      onClick={async () => {
-                        setBusyId(mount.id)
-                        try {
-                          const result = await api.cloud.sync(mount.id)
-                          toast('success', `同步完成：上传 ${result.uploaded}，下载 ${result.downloaded}，跳过 ${result.skipped}`)
-                          await refresh()
-                        } catch (error) {
-                          toast('error', `同步失败：${(error as Error).message}`)
-                        } finally {
-                          setBusyId(null)
-                          setProgress(null)
-                        }
-                      }}
-                    >
-                      同步
-                    </Button>
-                    <Button
-                      size="small"
-                      startIcon={<FolderOpenRoundedIcon />}
-                      onClick={async () => {
-                        const entries = await api.cloud.listRemote(mount.id, mount.remotePath).catch(() => [])
-                        setBrowsing({ mountId: mount.id, path: mount.remotePath, entries })
-                      }}
-                    >
-                      浏览
-                    </Button>
-                    <Button size="small" onClick={() => setDraft(mount)}>
-                      编辑
-                    </Button>
-                    <IconButton
-                      size="small"
-                      onClick={async () => {
-                        await api.cloud.remove(mount.id)
-                        await refresh()
-                      }}
-                    >
-                      <DeleteRoundedIcon fontSize="small" />
-                    </IconButton>
-                  </Stack>
-                </CardContent>
-              </Card>
-            ))}
-          </Box>
-        )}
-        {progress ? <Alert severity="info" sx={{ mx: 2, mb: 2 }}>同步进度：{progress}</Alert> : null}
-      </Section>
-
-      <Section title="自动同步" subtitle="应用启动后按间隔自动同步所有已启用挂载">
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ p: 2 }} flexWrap="wrap" useFlexGap>
-          <TextField
-            select
-            size="small"
-            label="同步间隔"
-            value={settings?.sync.intervalMinutes ?? 15}
-            onChange={(event) => void patchSettings({ sync: { ...(settings?.sync as object), intervalMinutes: Number(event.target.value) } })}
-            sx={{ width: 160 }}
-          >
-            {[5, 15, 30, 60, 120].map((value) => (
-              <MenuItem key={value} value={value}>
-                {value} 分钟
-              </MenuItem>
-            ))}
-          </TextField>
-          <Button
-            variant="outlined"
-            onClick={async () => {
-              const results = await api.sync.run()
-              toast('success', `已同步 ${results.length} 个挂载`)
-            }}
-          >
-            立即全部同步
-          </Button>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '228px minmax(0, 1fr)' }, gap: 2.5, alignItems: 'start' }}>
+      {compact ? (
+        <Stack direction="row" spacing={1} sx={{ overflowX: 'auto' }} className="sig-scroll-thin">
+          {(['mounts', 'auto', 'log'] as Panel[]).map((id) => (
+            <Chip
+              key={id}
+              label={id === 'mounts' ? '云盘挂载' : id === 'auto' ? '自动同步' : '同步日志'}
+              clickable
+              color={panel === id ? 'primary' : 'default'}
+              variant={panel === id ? 'filled' : 'outlined'}
+              onClick={() => setPanel(id)}
+            />
+          ))}
         </Stack>
-      </Section>
+      ) : (
+        <Box
+          sx={{
+            position: 'sticky',
+            top: 8,
+            p: 1,
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: alpha(theme.palette.background.paper, 0.7)
+          }}
+        >
+          <Typography variant="caption" fontWeight={700} letterSpacing={1} color="text.disabled" sx={{ pl: 1.5, py: 1, display: 'block' }}>
+            云盘与同步
+          </Typography>
+          {panelNav}
+        </Box>
+      )}
+
+      <Stack spacing={2.5} sx={{ minWidth: 0 }}>
+        <Alert severity="warning" icon={false}>
+          夸克网盘适配器为实验性实现（基于网页端接口，需自行提供 Cookie），目前支持浏览与下载；上传请使用 WebDAV 或 SMB。
+        </Alert>
+
+        {panel === 'auto' ? (
+          <Section title="自动同步" subtitle="应用启动后按间隔自动同步已启用挂载，结果会记录到同步日志">
+            <Stack spacing={2.5} sx={{ p: 2 }}>
+              <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Button
+                  variant={settings.sync.autoSync ? 'contained' : 'outlined'}
+                  onClick={() => void patchSettings({ sync: { ...settings.sync, autoSync: !settings.sync.autoSync } })}
+                >
+                  {settings.sync.autoSync ? '已开启自动同步' : '开启自动同步'}
+                </Button>
+                <TextField
+                  select
+                  size="small"
+                  label="同步间隔"
+                  value={settings.sync.intervalMinutes}
+                  onChange={(event) => void patchSettings({ sync: { ...settings.sync, intervalMinutes: Number(event.target.value) } })}
+                  sx={{ width: 170 }}
+                >
+                  {[5, 15, 30, 60, 120].map((value) => (
+                    <MenuItem key={value} value={value}>
+                      {value} 分钟
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  size="small"
+                  label="默认同步挂载"
+                  value={settings.sync.mountId ?? ''}
+                  onChange={(event) => void patchSettings({ sync: { ...settings.sync, mountId: event.target.value || null } })}
+                  sx={{ minWidth: 220 }}
+                >
+                  <MenuItem value="">全部已启用挂载</MenuItem>
+                  {mounts.map((mount) => (
+                    <MenuItem key={mount.id} value={mount.id}>
+                      {mount.name}（{mount.kind}）
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <Button
+                  variant="outlined"
+                  startIcon={<SyncRoundedIcon />}
+                  onClick={async () => {
+                    setBusyId('__all__')
+                    try {
+                      const results = await api.sync.run()
+                      toast('success', `已同步 ${results.length} 个挂载`)
+                    } catch (error) {
+                      toast('error', `同步失败：${(error as Error).message}`)
+                    } finally {
+                      setBusyId(null)
+                      setProgress(null)
+                      await refresh()
+                    }
+                  }}
+                  disabled={busyId !== null}
+                >
+                  立即全部同步
+                </Button>
+              </Stack>
+              {progress ? <Alert severity="info">同步进度：{progress}</Alert> : null}
+            </Stack>
+          </Section>
+        ) : null}
+
+        {panel === 'log' ? (
+          <Section
+            title={`同步日志 · ${log.length}`}
+            subtitle="仅保留最近 100 条"
+            action={
+              <Button size="small" onClick={() => void refresh()}>
+                刷新
+              </Button>
+            }
+          >
+            {log.length === 0 ? (
+              <EmptyState title="还没有同步记录" description="执行一次同步后，这里会显示上传/下载/冲突统计。" />
+            ) : (
+              <List dense sx={{ px: 1, pb: 1 }}>
+                {log.map((entry) => (
+                  <ListItemButton key={entry.id} sx={{ borderRadius: 2, mb: 0.25 }} onClick={() => setPanel('mounts')}>
+                    <ListItemIcon sx={{ minWidth: 34 }}>
+                      <Chip size="small" label={entry.conflicts > 0 ? '冲突' : '完成'} color={entry.conflicts > 0 ? 'warning' : 'success'} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={`${entry.mountName} · 上传 ${entry.uploaded}，下载 ${entry.downloaded}，跳过 ${entry.skipped}`}
+                      secondary={`${formatDateTime(entry.at)} · ${formatRelative(entry.at)}`}
+                      primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                      secondaryTypographyProps={{ variant: 'caption' }}
+                    />
+                    {entry.conflicts > 0 ? <Chip size="small" variant="outlined" label={`${entry.conflicts} 冲突`} /> : null}
+                  </ListItemButton>
+                ))}
+              </List>
+            )}
+          </Section>
+        ) : null}
+
+        {panel === 'mounts' ? (
+          <Section
+            title={`云盘挂载 · ${mounts.length}`}
+            subtitle="SMB / WebDAV / 夸克网盘 / 本地目录，用于多端同步与存档托管"
+            action={
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<AddRoundedIcon />}
+                onClick={() => setDraft({ kind: 'webdav', name: '', remotePath: '/StudyInGal', enabled: true, config: {} })}
+              >
+                新建挂载
+              </Button>
+            }
+          >
+            {mounts.length === 0 ? (
+              <EmptyState title="还没有挂载" description="推荐使用 WebDAV（坚果云、Nextcloud、Alist 等）或 SMB 作为同步后端。" />
+            ) : (
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, p: 2 }}>
+                {mounts.map((mount) => (
+                  <Card key={mount.id} elevation={0}>
+                    <CardContent>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="subtitle2" fontWeight={700} sx={{ flexGrow: 1 }} noWrap>
+                          {mount.name}
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={mount.status}
+                          color={mount.status === 'connected' ? 'success' : mount.status === 'error' ? 'error' : 'default'}
+                        />
+                        <Chip size="small" variant="outlined" label={mount.kind.toUpperCase()} />
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                        {mount.remotePath} · 上次同步 {formatDateTime(mount.lastSyncAt)}
+                      </Typography>
+                      {mount.lastError ? (
+                        <Typography variant="caption" color="error" display="block" sx={{ wordBreak: 'break-all' }}>
+                          {mount.lastError}
+                        </Typography>
+                      ) : null}
+                      <Divider sx={{ my: 1.25 }} />
+                      <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                        <Button
+                          size="small"
+                          startIcon={<WifiTetheringRoundedIcon />}
+                          onClick={async () => {
+                            const result = await api.cloud.test(mount.id)
+                            toast(result.ok ? 'success' : 'error', result.message)
+                            await refresh()
+                          }}
+                        >
+                          测试
+                        </Button>
+                        <Button
+                          size="small"
+                          startIcon={<SyncRoundedIcon />}
+                          disabled={busyId === mount.id}
+                          onClick={async () => {
+                            setBusyId(mount.id)
+                            try {
+                              const result = await api.cloud.sync(mount.id)
+                              toast('success', `同步完成：上传 ${result.uploaded}，下载 ${result.downloaded}，跳过 ${result.skipped}`)
+                            } catch (error) {
+                              toast('error', `同步失败：${(error as Error).message}`)
+                            } finally {
+                              setBusyId(null)
+                              setProgress(null)
+                              await refresh()
+                            }
+                          }}
+                        >
+                          同步
+                        </Button>
+                        <Button
+                          size="small"
+                          startIcon={<FolderOpenRoundedIcon />}
+                          onClick={async () => {
+                            const entries = await api.cloud.listRemote(mount.id, mount.remotePath).catch(() => [])
+                            setBrowsing({ mountId: mount.id, path: mount.remotePath, entries })
+                          }}
+                        >
+                          浏览
+                        </Button>
+                        <IconButton size="small" onClick={() => setDraft(mount)}>
+                          <EditRoundedIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={async () => {
+                            await api.cloud.remove(mount.id)
+                            await refresh()
+                          }}
+                        >
+                          <DeleteRoundedIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Box>
+            )}
+          </Section>
+        ) : null}
+      </Stack>
 
       <Dialog open={draft !== null} onClose={() => setDraft(null)} fullWidth maxWidth="sm">
         <DialogTitle>挂载配置</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField select label="类型" value={draft?.kind ?? 'webdav'} onChange={(event) => setDraft({ ...(draft ?? {}), kind: event.target.value as CloudKind, config: {} })}>
+            <TextField
+              select
+              label="类型"
+              value={draft?.kind ?? 'webdav'}
+              onChange={(event) => setDraft({ ...(draft ?? {}), kind: event.target.value as CloudKind, config: {} })}
+            >
               <MenuItem value="webdav">WebDAV</MenuItem>
               <MenuItem value="smb">SMB / Samba</MenuItem>
               <MenuItem value="quark">夸克网盘（实验性）</MenuItem>
@@ -279,6 +459,6 @@ export function CloudPage() {
           <Button onClick={() => setBrowsing(null)}>关闭</Button>
         </DialogActions>
       </Dialog>
-    </Stack>
+    </Box>
   )
 }
