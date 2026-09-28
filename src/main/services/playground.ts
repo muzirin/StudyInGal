@@ -72,8 +72,25 @@ const SPECS: RuntimeSpec[] = [
   }
 ]
 
+interface RuntimeInfoSpec {
+  id: string
+  name: string
+  command: string
+  versionArgs: string[]
+  extension: string
+}
+
+const MSVC_SPEC: RuntimeInfoSpec & Partial<RuntimeSpec> = {
+  id: 'msvc',
+  name: 'MSVC (cl.exe)',
+  command: 'cl',
+  versionArgs: ['/?'],
+  extension: 'main.c'
+}
+
 export function listRuntimes(): RuntimeInfo[] {
-  return SPECS.map((spec) => {
+  const specs: RuntimeInfoSpec[] = [...SPECS, MSVC_SPEC]
+  return specs.map((spec) => {
     const path = which(spec.command)
     return {
       id: spec.id,
@@ -119,7 +136,18 @@ function execCapture(
 
 export async function runCode(request: RunCodeRequest): Promise<RunCodeResult> {
   const spec = SPECS.find((item) => item.id === request.language)
-  if (!spec) throw new Error(`暂不支持的语言：${request.language}`)
+  if (!spec) {
+    if (request.language === 'msvc') {
+      throw new Error('MSVC 仅用于环境检测：cl.exe 需要在 "Developer Command Prompt" 中运行，请改用 gcc/g++ 或从该终端启动 StudyInGal')
+    }
+    throw new Error(`暂不支持的语言：${request.language}`)
+  }
+  const needed = [spec.run.command, spec.compile?.command].filter(Boolean) as string[]
+  const missing = needed.filter((command) => !which(command))
+  if (missing.length > 0) {
+    throw new Error(`未检测到可执行环境：${[...new Set(missing)].join(', ')}。请先安装对应运行时，或在「代码练习场」顶部查看检测结果。`)
+  }
+
   const workdir = join(tempDir(), 'playground', `${Date.now()}`)
   await mkdir(workdir, { recursive: true })
 
