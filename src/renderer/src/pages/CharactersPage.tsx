@@ -183,7 +183,11 @@ export function CharactersPage() {
                       <Chip key={tag} size="small" label={tag} variant="outlined" />
                     ))}
                     {character.live2d?.modelPath ? <Chip size="small" color="primary" label="Live2D" /> : null}
-                    <Chip size="small" label={`${character.sprites.length} 立绘`} />
+                    {character.sprites.length > 0 ? (
+                      <Chip size="small" label={`${character.sprites.length} 立绘`} />
+                    ) : (
+                      <Chip size="small" variant="outlined" color="secondary" label="使用内置立绘" />
+                    )}
                   </Stack>
                   <Stack direction="row" spacing={1}>
                     <Button size="small" startIcon={<EditRoundedIcon />} onClick={() => openEditor(character)}>
