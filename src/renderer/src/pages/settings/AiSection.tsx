@@ -274,6 +274,7 @@ export function AiSection() {
                   value={draft.maxTokens}
                   onChange={(event) => setDraft({ ...draft, maxTokens: Number(event.target.value) })}
                   fullWidth
+                  helperText="单次回复上限。剧本生成会自动按行数放大（最高 8192），过小会导致剧本被截断。"
                 />
               </Stack>
               <FormControlLabel

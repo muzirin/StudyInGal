@@ -1,4 +1,6 @@
 import { newId } from '../../lib/util'
+import { parseDialogueJson } from '../../lib/jsonLines'
+import { emitEvent } from '../../lib/events'
 import { findNode } from '../library'
 import { mergeNode, readDocument } from '../documents'
 import { listCharacters } from '../characters'
@@ -14,32 +16,15 @@ const DEPTH_BUDGET: Record<GalGenerateOptions['depth'], { chars: number; instruc
   deep: { chars: 40000, instruction: '逐节深入讲解，包含方法细节、公式直觉、实验设计权衡与可能的局限。' }
 }
 
-function parseLines(content: string): { speaker: DialogueLine['speaker']; text: string; emotion: string }[] {
-  let payload: unknown
-  const trimmed = content.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
-  try {
-    payload = JSON.parse(trimmed)
-  } catch {
-    const start = trimmed.indexOf('{')
-    const end = trimmed.lastIndexOf('}')
-    if (start < 0 || end <= start) throw new Error('模型未返回可解析的 JSON 剧本')
-    payload = JSON.parse(trimmed.slice(start, end + 1))
-  }
-  const raw = Array.isArray(payload) ? payload : (payload as { lines?: unknown }).lines
-  if (!Array.isArray(raw)) throw new Error('剧本 JSON 缺少 lines 数组')
-  return raw
-    .map((item) => {
-      const line = item as { speaker?: string; text?: string; emotion?: string }
-      const speaker: DialogueLine['speaker'] =
-        line.speaker === 'user' || line.speaker === 'narration' ? line.speaker : 'character'
-      return {
-        speaker,
-        text: String(line.text ?? '').trim(),
-        emotion: EMOTIONS.includes(String(line.emotion)) ? String(line.emotion) : 'neutral'
-      }
-    })
-    .filter((line) => line.text.length > 0)
-}
+/**
+ * 剧本输出所需的 max_tokens 预算。
+ * 中文对话 + JSON 结构大约每行 100~150 tokens，这里按 150 估算并留出固定开销。
+ * 上限取 8192：DeepSeek 等主流模型的单次输出上限，超过会被 API 直接拒绝。
+ */
+const SCRIPT_MAX_TOKENS = 8192
+const estimateTokens = (maxLines: number): number => Math.min(SCRIPT_MAX_TOKENS, 900 + maxLines * 150)
+
+const isMaxTokenError = (message: string): boolean => /max_?tokens|maximum context|too large/i.test(message)
 
 export async function generateScript(options: GalGenerateOptions): Promise<GalScript> {
   const found = findNode(options.sourceId)
@@ -52,7 +37,8 @@ export async function generateScript(options: GalGenerateOptions): Promise<GalSc
 
   const provider = resolveProvider('script')
   const budget = DEPTH_BUDGET[options.depth] ?? DEPTH_BUDGET.standard
-  const content = found.node.format === 'folder' ? (await mergeNode(found.node)).markdown : (await readDocument(found.node)).text
+  const content =
+    found.node.format === 'folder' ? (await mergeNode(found.node)).markdown : (await readDocument(found.node)).text
   const excerpt = content.slice(0, budget.chars)
 
   const system = [
@@ -70,7 +56,8 @@ export async function generateScript(options: GalGenerateOptions): Promise<GalSc
     options.focus ? `重点聚焦：${options.focus}` : '',
     '要求：角色是你（speaker=character），用户是「我」（speaker=user），旁白用 narration。',
     `emotion 只能取以下之一：${EMOTIONS.join(', ')}。`,
-    '只输出 JSON，不要任何解释文本，结构为：{"lines":[{"speaker":"character","text":"...","emotion":"neutral"}]}',
+    '每行台词尽量控制在 60 字以内，保持简洁，不要输出任何解释性文字。',
+    '只输出 JSON，结构为：{"lines":[{"speaker":"character","text":"...","emotion":"neutral"}]}',
     '--- 文献内容开始 ---',
     excerpt,
     '--- 文献内容结束 ---'
@@ -78,18 +65,51 @@ export async function generateScript(options: GalGenerateOptions): Promise<GalSc
     .filter(Boolean)
     .join('\n')
 
-  const response = await chat({
-    providerId: provider.id,
-    capability: 'script',
-    json: true,
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: user }
-    ]
-  })
+  const messages = [
+    { role: 'system' as const, content: system },
+    { role: 'user' as const, content: user }
+  ]
 
-  const parsed = parseLines(response.content).slice(0, options.maxLines)
-  const lines: DialogueLine[] = parsed.map((line) => ({ id: newId('line'), ...line }))
+  const requestedTokens = Math.max(provider.maxTokens, estimateTokens(options.maxLines))
+  let response
+  try {
+    response = await chat({ providerId: provider.id, capability: 'script', json: true, messages, maxTokens: requestedTokens })
+  } catch (error) {
+    const message = (error as Error).message
+    // 某些模型拒绝偏大的 max_tokens，回退到用户配置的值再试一次
+    if (isMaxTokenError(message) && requestedTokens > provider.maxTokens) {
+      response = await chat({ providerId: provider.id, capability: 'script', json: true, messages, maxTokens: provider.maxTokens })
+    } else {
+      throw error
+    }
+  }
+
+  const parsed = parseDialogueJson(response.content, EMOTIONS)
+  if (parsed.lines.length === 0) {
+    throw new Error(
+      '模型没有返回可解析的 JSON 剧本。可尝试：换用能力更强的模型、降低「最大对话行数」、或在提供商设置里调大 Max tokens。'
+    )
+  }
+
+  const hitLengthLimit = response.finishReason === 'length' || /length/i.test(response.finishReason ?? '')
+  const truncated = parsed.truncated || hitLengthLimit
+
+  const lines: DialogueLine[] = parsed.lines.slice(0, options.maxLines).map((line) => ({
+    id: newId('line'),
+    speaker: line.speaker as DialogueLine['speaker'],
+    text: line.text,
+    emotion: line.emotion
+  }))
+
+  if (truncated) {
+    emitEvent({
+      type: 'toast',
+      payload: {
+        severity: 'warning',
+        message: `模型输出被 max tokens 截断，已保留前 ${lines.length} 行。可减少「最大对话行数」或在提供商设置里调大 Max tokens。`
+      }
+    })
+  }
 
   return saveScript({
     sourceId: found.node.id,

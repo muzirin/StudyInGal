@@ -182,6 +182,8 @@ export interface ChatRequest {
   capability?: AICapability
   messages: ChatMessage[]
   temperature?: number
+  /** 覆盖提供商默认的 max tokens（剧本生成会按行数预算自动放大） */
+  maxTokens?: number
   json?: boolean
   stream?: boolean
 }
@@ -190,6 +192,8 @@ export interface ChatResponse {
   providerId: string
   model: string
   content: string
+  /** 结束原因，'length' 表示被 max_tokens 截断 */
+  finishReason?: string | null
   usage?: { promptTokens?: number; completionTokens?: number }
 }
 

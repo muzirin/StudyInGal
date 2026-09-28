@@ -47,7 +47,21 @@ export function resolveProvider(capability: AICapability = 'chat', explicitId?: 
 
 const normalizeBase = (baseUrl: string): string => baseUrl.replace(/\/+$/, '')
 
+/**
+ * 部分模型不支持 OpenAI 的 response_format=json_object：
+ * - DeepSeek 的 reasoner 系列明确不支持；
+ * - 本地 Ollama 的 OpenAI 兼容层也可能拒绝。
+ * 这些情况下靠提示词约束 JSON，再配合容错解析。
+ */
+const supportsJsonMode = (provider: AIProviderConfig): boolean => {
+  if (!provider.kind.includes('openai') && provider.kind !== 'deepseek' && provider.kind !== 'openai-compatible') return true
+  if (/reasoner|r1/i.test(provider.model)) return false
+  if (provider.kind === 'ollama') return false
+  return true
+}
+
 async function callOpenAICompatible(provider: AIProviderConfig, request: ChatRequest): Promise<ChatResponse> {
+  const useJsonMode = Boolean(request.json) && supportsJsonMode(provider)
   const response = await fetch(`${normalizeBase(provider.baseUrl)}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -59,19 +73,20 @@ async function callOpenAICompatible(provider: AIProviderConfig, request: ChatReq
       model: provider.model,
       messages: request.messages,
       temperature: request.temperature ?? provider.temperature,
-      max_tokens: provider.maxTokens,
-      ...(request.json ? { response_format: { type: 'json_object' } } : {})
+      max_tokens: request.maxTokens ?? provider.maxTokens,
+      ...(useJsonMode ? { response_format: { type: 'json_object' } } : {})
     })
   })
   if (!response.ok) throw new Error(`API ${response.status}: ${await response.text().catch(() => '')}`)
   const data = (await response.json()) as {
-    choices: { message: { content: string } }[]
+    choices: { message: { content: string }; finish_reason?: string }[]
     usage?: { prompt_tokens: number; completion_tokens: number }
   }
   return {
     providerId: provider.id,
     model: provider.model,
     content: data.choices?.[0]?.message?.content ?? '',
+    finishReason: data.choices?.[0]?.finish_reason ?? null,
     usage: data.usage
       ? { promptTokens: data.usage.prompt_tokens, completionTokens: data.usage.completion_tokens }
       : undefined
@@ -96,7 +111,7 @@ async function callGemini(provider: AIProviderConfig, request: ChatRequest): Pro
         ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
         generationConfig: {
           temperature: request.temperature ?? provider.temperature,
-          maxOutputTokens: provider.maxTokens,
+          maxOutputTokens: request.maxTokens ?? provider.maxTokens,
           ...(request.json ? { responseMimeType: 'application/json' } : {})
         }
       })
@@ -104,12 +119,13 @@ async function callGemini(provider: AIProviderConfig, request: ChatRequest): Pro
   )
   if (!response.ok) throw new Error(`Gemini ${response.status}: ${await response.text().catch(() => '')}`)
   const data = (await response.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
+    candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]
   }
   return {
     providerId: provider.id,
     model: provider.model,
-    content: data.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? ''
+    content: data.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '',
+    finishReason: data.candidates?.[0]?.finishReason ?? null
   }
 }
 
@@ -128,18 +144,19 @@ async function callAnthropic(provider: AIProviderConfig, request: ChatRequest): 
     },
     body: JSON.stringify({
       model: provider.model,
-      max_tokens: provider.maxTokens,
+      max_tokens: request.maxTokens ?? provider.maxTokens,
       temperature: request.temperature ?? provider.temperature,
       ...(system ? { system } : {}),
       messages
     })
   })
   if (!response.ok) throw new Error(`Anthropic ${response.status}: ${await response.text().catch(() => '')}`)
-  const data = (await response.json()) as { content?: { text?: string }[] }
+  const data = (await response.json()) as { content?: { text?: string }[]; stop_reason?: string }
   return {
     providerId: provider.id,
     model: provider.model,
-    content: data.content?.map((part) => part.text ?? '').join('') ?? ''
+    content: data.content?.map((part) => part.text ?? '').join('') ?? '',
+    finishReason: data.stop_reason ?? null
   }
 }
 
