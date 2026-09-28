@@ -19,6 +19,7 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  Paper,
   Stack,
   TextField,
   ToggleButton,
@@ -52,6 +53,7 @@ import ClearAllRoundedIcon from '@mui/icons-material/ClearAllRounded'
 import FactCheckRoundedIcon from '@mui/icons-material/FactCheckRounded'
 import GridViewRoundedIcon from '@mui/icons-material/GridViewRounded'
 import ViewListRoundedIcon from '@mui/icons-material/ViewListRounded'
+import ChecklistRoundedIcon from '@mui/icons-material/ChecklistRounded'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
@@ -106,6 +108,11 @@ export function LibraryPage() {
   const [detailTag, setDetailTag] = useState('')
   const [ocrView, setOcrView] = useState<{ title: string; text: string } | null>(null)
   const [dragActive, setDragActive] = useState(false)
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selected, setSelected] = useState<string[]>([])
+  const [bulkDialog, setBulkDialog] = useState<null | 'folder' | 'tag'>(null)
+  const [bulkFolderId, setBulkFolderId] = useState('')
+  const [bulkTagName, setBulkTagName] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -285,6 +292,29 @@ export function LibraryPage() {
       tags: tagFilter ? [tagFilter] : []
     })
     toast(created.length === paths.length ? 'success' : 'warning', `已导入 ${created.length} / ${paths.length} 个文件`)
+    await load()
+  }
+
+  const toggleSelected = (id: string): void => {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]))
+  }
+
+  const applyBulk = async (mutate: (node: LibraryNode) => Partial<LibraryNode>): Promise<void> => {
+    const targets = (snapshot?.nodes ?? []).filter((node) => selected.includes(node.id))
+    for (const node of targets) {
+      await api.library.update(kind, node.id, mutate(node))
+    }
+    setSelected([])
+    setBulkDialog(null)
+    await load()
+    toast('success', `已更新 ${targets.length} 个条目`)
+  }
+
+  const removeSelected = async (): Promise<void> => {
+    for (const id of selected) await api.library.remove(kind, id)
+    toast('info', `已从库中移除 ${selected.length} 个条目`)
+    setSelected([])
+    setSelectionMode(false)
     await load()
   }
 
@@ -556,6 +586,19 @@ export function LibraryPage() {
                 <ViewListRoundedIcon fontSize="small" />
               </ToggleButton>
             </ToggleButtonGroup>
+            <Tooltip title={selectionMode ? '退出多选' : '多选批量操作'}>
+              <ToggleButton
+                size="small"
+                value="select"
+                selected={selectionMode}
+                onChange={() => {
+                  setSelectionMode((value) => !value)
+                  setSelected([])
+                }}
+              >
+                <ChecklistRoundedIcon fontSize="small" />
+              </ToggleButton>
+            </Tooltip>
           </Stack>
 
           {activeFilters.length > 0 ? (
@@ -618,8 +661,20 @@ export function LibraryPage() {
             >
               {nodes.map((node) => (
                 <Card key={node.id} elevation={0} sx={{ position: 'relative', overflow: 'hidden' }}>
-                  <CardActionArea onClick={() => navigate(`/reader/${kind}/${node.id}`)} sx={{ p: 2, pr: 7 }}>
+                  <CardActionArea
+                    onClick={() => (selectionMode ? toggleSelected(node.id) : navigate(`/reader/${kind}/${node.id}`))}
+                    sx={{ p: 2, pr: 7 }}
+                  >
                     <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                      {selectionMode ? (
+                        <Checkbox
+                          size="small"
+                          checked={selected.includes(node.id)}
+                          onChange={() => toggleSelected(node.id)}
+                          onClick={(event) => event.stopPropagation()}
+                          sx={{ mt: -0.5, ml: -1 }}
+                        />
+                      ) : null}
                       <Box sx={{ color: 'primary.main', mt: 0.25 }}>
                         {node.format === 'folder' ? <FolderRoundedIcon /> : <KindIcon />}
                       </Box>
@@ -915,6 +970,119 @@ export function LibraryPage() {
       <Alert severity="info" icon={false}>
         所有库内操作都是「索引式管理」：移除条目不会删除磁盘文件，文件夹教材也不会被改写。
       </Alert>
+
+      {selectionMode ? (
+        <Paper
+          elevation={10}
+          sx={{
+            position: 'fixed',
+            bottom: 26,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            px: 2,
+            py: 1,
+            borderRadius: 999,
+            zIndex: 1300,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            flexWrap: 'wrap'
+          }}
+        >
+          <Chip size="small" color="primary" label={`已选 ${selected.length}`} sx={{ mr: 1 }} />
+          <Button
+            size="small"
+            disabled={selected.length === 0}
+            onClick={() => {
+              setBulkFolderId(folderFilter ?? '')
+              setBulkDialog('folder')
+            }}
+          >
+            移动到文件夹
+          </Button>
+          <Button
+            size="small"
+            disabled={selected.length === 0}
+            onClick={() => {
+              setBulkTagName('')
+              setBulkDialog('tag')
+            }}
+          >
+            添加标签
+          </Button>
+          <Button size="small" disabled={selected.length === 0} onClick={() => void applyBulk(() => ({ favorite: true }))}>
+            加入收藏
+          </Button>
+          <Button size="small" color="warning" disabled={selected.length === 0} onClick={() => void removeSelected()}>
+            移除
+          </Button>
+          <Button
+            size="small"
+            color="inherit"
+            onClick={() => {
+              setSelectionMode(false)
+              setSelected([])
+            }}
+          >
+            取消
+          </Button>
+        </Paper>
+      ) : null}
+
+      <Dialog open={bulkDialog === 'folder'} onClose={() => setBulkDialog(null)} fullWidth maxWidth="xs">
+        <DialogTitle>移动到文件夹</DialogTitle>
+        <DialogContent>
+          <TextField
+            select
+            fullWidth
+            margin="dense"
+            label="目标文件夹"
+            value={bulkFolderId}
+            onChange={(event) => setBulkFolderId(event.target.value)}
+          >
+            <MenuItem value="">未归类</MenuItem>
+            {(snapshot?.folders ?? []).map((folder) => (
+              <MenuItem key={folder.id} value={folder.id}>
+                {folder.name}
+              </MenuItem>
+            ))}
+          </TextField>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkDialog(null)}>取消</Button>
+          <Button variant="contained" onClick={() => void applyBulk(() => ({ folderId: bulkFolderId || null }))}>
+            应用
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={bulkDialog === 'tag'} onClose={() => setBulkDialog(null)} fullWidth maxWidth="xs">
+        <DialogTitle>添加标签</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            margin="dense"
+            label="标签名"
+            value={bulkTagName}
+            onChange={(event) => setBulkTagName(event.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkDialog(null)}>取消</Button>
+          <Button
+            variant="contained"
+            disabled={!bulkTagName.trim()}
+            onClick={() => {
+              const tag = bulkTagName.trim()
+              void api.library.createTag({ name: tag }).catch(() => undefined)
+              void applyBulk((node) => ({ tags: node.tags.includes(tag) ? node.tags : [...node.tags, tag] }))
+            }}
+          >
+            应用
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   )
 }

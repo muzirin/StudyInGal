@@ -19,7 +19,8 @@ const GROUPS: { title: string; items: { keys: string; label: string }[] }[] = [
     items: [
       { keys: 'Ctrl + K', label: '打开命令面板（跳转 / 执行操作）' },
       { keys: 'Ctrl + Shift + K', label: '一键询问伴学娘' },
-      { keys: 'Ctrl + ,', label: '打开设置（命令面板输入「设置」）' },
+      { keys: 'Ctrl + ,', label: '打开设置' },
+      { keys: 'Alt + 1…9', label: '快速切换到常用 / 前九个模块' },
       { keys: 'Esc', label: '关闭当前弹窗 / 面板' },
       { keys: 'F12', label: '开发者工具（仅开发者模式）' }
     ]

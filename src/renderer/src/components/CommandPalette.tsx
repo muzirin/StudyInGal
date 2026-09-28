@@ -219,11 +219,30 @@ export function CommandPalette() {
         event.preventDefault()
         setOpen(false)
         navigate('/settings')
+        return
+      }
+      // Alt+1..9 快速切换模块（常用优先，其后按导航顺序）
+      if (event.altKey && !mod && /^[1-9]$/.test(event.key)) {
+        const visible = MODULES.filter((module) => {
+          if (module.devOnly && !(settings?.developer.enabled ?? false)) return false
+          return !(settings?.nav.hidden ?? []).includes(module.id)
+        })
+        const pinnedIds = settings?.nav.pinned ?? []
+        const ordered = [
+          ...pinnedIds.map((id) => visible.find((module) => module.id === id)).filter(Boolean),
+          ...visible.filter((module) => !pinnedIds.includes(module.id))
+        ] as typeof visible
+        const target = ordered[Number(event.key) - 1]
+        if (target) {
+          event.preventDefault()
+          setOpen(false)
+          navigate(target.path)
+        }
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [openAsk, navigate])
+  }, [openAsk, navigate, settings?.developer.enabled, settings?.nav.hidden, settings?.nav.pinned])
 
   useEffect(() => {
     const node = listRef.current?.querySelector('[data-active="true"]')

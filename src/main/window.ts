@@ -2,6 +2,7 @@
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 import { emitEvent } from './lib/events'
+import { attachWindowStatePersistence, loadWindowState } from './services/windowState'
 
 const isMac = process.platform === 'darwin'
 
@@ -18,9 +19,11 @@ export function broadcastWindowState(window: BrowserWindow): void {
 }
 
 export function createWindow(): BrowserWindow {
+  const saved = loadWindowState()
   const window = new BrowserWindow({
-    width: 1480,
-    height: 920,
+    width: saved.bounds.width,
+    height: saved.bounds.height,
+    ...(saved.bounds.x !== undefined && saved.bounds.y !== undefined ? { x: saved.bounds.x, y: saved.bounds.y } : {}),
     minWidth: 940,
     minHeight: 640,
     show: false,
@@ -54,6 +57,8 @@ export function createWindow(): BrowserWindow {
     window.show()
     broadcastWindowState(window)
   })
+
+  attachWindowStatePersistence(window)
 
   window.webContents.setWindowOpenHandler((details) => {
     void shell.openExternal(details.url)
