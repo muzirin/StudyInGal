@@ -20,9 +20,10 @@ import { Section } from '../components/Section'
 import type { ChapterRef, LibraryNode } from '@shared/types'
 
 export function EditorPage() {
-  const { nodeId = '' } = useParams<{ nodeId: string }>()
+  const { nodeId = '' } = useParams<{ kind?: string; nodeId: string }>()
   const toast = useAppStore((state) => state.toast)
   const settings = useAppStore((state) => state.settings)
+  const setCrumb = useAppStore((state) => state.setCrumb)
 
   const [node, setNode] = useState<LibraryNode | null>(null)
   const [chapters, setChapters] = useState<ChapterRef[]>([])
@@ -38,6 +39,7 @@ export function EditorPage() {
       const [papers, textbooks] = await Promise.all([api.library.snapshot('paper'), api.library.snapshot('textbook')])
       const found = [...papers.nodes, ...textbooks.nodes].find((item) => item.id === nodeId) ?? null
       setNode(found)
+      setCrumb({ label: found?.title ?? '编辑', hint: '源码编辑' })
       const chapterList = await api.library.chapters(nodeId).catch(() => [] as ChapterRef[])
       setChapters(chapterList)
       const active = path ?? (found?.format === 'folder' ? chapterList[0]?.path ?? '' : found?.path ?? '')

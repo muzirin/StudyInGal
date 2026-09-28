@@ -134,7 +134,11 @@ export function buildTheme({ paletteId, mode, radius, touchOptimized, compact }:
         styleOverrides: {
           ':root': {
             '--sig-surface-variant': surfaceVariant,
-            '--sig-nav-width': '260px'
+            '--sig-nav-width': '264px',
+            '--sig-rail-width': '76px',
+            '--sig-titlebar-height': '44px',
+            '--sig-mask-a': mix(primary, dark ? '#000000' : '#FFFFFF', 0.22),
+            '--sig-mask-b': mix(secondary, primary, 0.55)
           },
           body: {
             backgroundImage:

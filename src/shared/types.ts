@@ -447,6 +447,40 @@ export interface AppInfo {
   isDev: boolean
 }
 
+export interface WindowState {
+  maximized: boolean
+  fullscreen: boolean
+  focused: boolean
+}
+
+export type HistoryKind = 'paper' | 'textbook' | 'script' | 'save' | 'tool' | 'action'
+
+export interface HistoryEntry {
+  id: string
+  kind: HistoryKind
+  title: string
+  subtitle: string
+  refId: string
+  route: string
+  icon: string
+  at: number
+  count: number
+}
+
+export type NoteKind = 'ai' | 'user' | 'quote'
+
+export interface NoteEntry {
+  id: string
+  nodeId: string
+  chapterPath: string
+  chapterTitle: string
+  title: string
+  kind: NoteKind
+  content: string
+  createdAt: number
+  updatedAt: number
+}
+
 export type NavPosition = 'left' | 'right' | 'top' | 'bottom'
 
 export type ThemeMode = 'light' | 'dark' | 'system'

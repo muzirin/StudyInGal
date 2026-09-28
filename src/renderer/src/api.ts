@@ -11,6 +11,7 @@ export const api: StudyApi = {
     openPath: (target) => invoke(CHANNELS.app.openPath, { target }),
     revealPath: (target) => invoke(CHANNELS.app.revealPath, { target }),
     window: (action) => invoke(CHANNELS.app.window, { action }),
+    windowState: () => invoke(CHANNELS.app.windowState),
     devtools: () => invoke(CHANNELS.app.devtools),
     relaunch: () => invoke(CHANNELS.app.relaunch),
     quit: () => invoke(CHANNELS.app.quit)
@@ -123,6 +124,18 @@ export const api: StudyApi = {
   sync: {
     status: () => invoke(CHANNELS.sync.status),
     run: () => invoke(CHANNELS.sync.run)
+  },
+  history: {
+    list: (limit) => invoke(CHANNELS.history.list, { limit }),
+    add: (entry) => invoke(CHANNELS.history.add, entry),
+    remove: (id) => invoke(CHANNELS.history.remove, { id }),
+    clear: () => invoke(CHANNELS.history.clear)
+  },
+  notes: {
+    list: (nodeId) => invoke(CHANNELS.notes.list, { nodeId }),
+    upsert: (entry) => invoke(CHANNELS.notes.upsert, entry),
+    remove: (id) => invoke(CHANNELS.notes.remove, { id }),
+    clear: (nodeId) => invoke(CHANNELS.notes.clear, { nodeId })
   },
   events: {
     subscribe: (listener) => window.study.on(listener as (event: unknown) => void)

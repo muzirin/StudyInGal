@@ -166,11 +166,40 @@ export const moduleById = (id: string): ModuleDef | undefined => MODULES.find((i
 
 export const GROUP_ORDER: ModuleGroup[] = ['学习', '工具', '资源', '系统']
 
+export const GROUP_META: Record<ModuleGroup, { id: string; icon: SvgIconComponent; description: string }> = {
+  学习: { id: 'study', icon: SchoolRoundedIcon, description: '论文、教材、伴学与 Gal' },
+  工具: { id: 'tools', icon: ConstructionRoundedIcon, description: '日程、番茄钟、练习场' },
+  资源: { id: 'assets', icon: GroupsRoundedIcon, description: '角色、工坊、云盘' },
+  系统: { id: 'system', icon: SettingsRoundedIcon, description: '设置与开发者选项' }
+}
+
+export interface NavGroupDef {
+  id: string
+  label: ModuleGroup
+  icon: SvgIconComponent
+  description: string
+  children: ModuleDef[]
+}
+
+export const NAV_GROUPS: NavGroupDef[] = GROUP_ORDER.map((group) => ({
+  id: GROUP_META[group].id,
+  label: group,
+  icon: GROUP_META[group].icon,
+  description: GROUP_META[group].description,
+  children: MODULES.filter((module) => module.group === group)
+}))
+
 export function pathToModuleId(pathname: string): string {
   if (pathname.startsWith('/library/')) return `library-${pathname.split('/')[2] ?? 'paper'}`
+  if (pathname.startsWith('/reader/')) {
+    const kind = pathname.split('/')[2]
+    return kind === 'textbook' ? 'library-textbook' : kind === 'paper' ? 'library-paper' : 'library-paper'
+  }
+  if (pathname.startsWith('/editor/')) {
+    const kind = pathname.split('/')[2]
+    return kind === 'textbook' ? 'library-textbook' : 'library-paper'
+  }
   const direct = MODULES.find((item) => item.path === pathname && item.path !== '/')
   if (direct) return direct.id
-  if (pathname.startsWith('/reader')) return 'library-paper'
-  if (pathname.startsWith('/editor')) return 'library-paper'
   return 'dashboard'
 }

@@ -5,6 +5,7 @@ export const CHANNELS = {
     openPath: 'app:openPath',
     revealPath: 'app:revealPath',
     window: 'app:window',
+    windowState: 'app:windowState',
     quit: 'app:quit',
     devtools: 'app:devtools',
     relaunch: 'app:relaunch'
@@ -118,6 +119,18 @@ export const CHANNELS = {
     status: 'sync:status',
     run: 'sync:run'
   },
+  history: {
+    list: 'history:list',
+    add: 'history:add',
+    remove: 'history:remove',
+    clear: 'history:clear'
+  },
+  notes: {
+    list: 'notes:list',
+    upsert: 'notes:upsert',
+    remove: 'notes:remove',
+    clear: 'notes:clear'
+  },
   event: 'study:event'
 } as const
 
@@ -146,3 +159,5 @@ export type StudyEvent =
   | { type: 'toast'; payload: { severity: 'success' | 'info' | 'warning' | 'error'; message: string } }
   | { type: 'proactive'; payload: { characterId: string; text: string } }
   | { type: 'library-changed'; payload: { kind: string } }
+  | { type: 'window-state'; payload: { maximized: boolean; fullscreen: boolean; focused: boolean } }
+  | { type: 'history-changed'; payload: { reason: string } }

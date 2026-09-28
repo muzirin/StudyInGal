@@ -14,6 +14,11 @@ export interface AskContext {
   selection?: string
 }
 
+export interface Crumb {
+  label: string
+  hint?: string
+}
+
 interface AppState {
   ready: boolean
   error: string | null
@@ -22,6 +27,7 @@ interface AppState {
   toasts: Toast[]
   askOpen: boolean
   askContext: AskContext
+  crumb: Crumb | null
   bootstrap: () => Promise<void>
   patchSettings: (patch: Record<string, unknown>) => Promise<AppSettings | null>
   resetSettings: () => Promise<void>
@@ -29,6 +35,7 @@ interface AppState {
   dismissToast: (id: string) => void
   openAsk: (context?: AskContext) => void
   closeAsk: () => void
+  setCrumb: (crumb: Crumb | null) => void
 }
 
 const newId = (): string => Math.random().toString(36).slice(2, 10)
@@ -41,6 +48,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   toasts: [],
   askOpen: false,
   askContext: {},
+  crumb: null,
 
   bootstrap: async () => {
     try {
@@ -81,5 +89,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   dismissToast: (id) => set((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) })),
 
   openAsk: (context) => set({ askOpen: true, askContext: context ?? {} }),
-  closeAsk: () => set({ askOpen: false })
+  closeAsk: () => set({ askOpen: false }),
+  setCrumb: (crumb) => set({ crumb })
 }))

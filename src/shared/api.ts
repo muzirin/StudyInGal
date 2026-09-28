@@ -13,11 +13,13 @@ import type {
   FolderNode,
   GalGenerateOptions,
   GalScript,
+  HistoryEntry,
   IssueDraft,
   LibraryKind,
   LibraryNode,
   LibrarySnapshot,
   MergedDocument,
+  NoteEntry,
   OcrResult,
   RunCodeRequest,
   RunCodeResult,
@@ -28,6 +30,7 @@ import type {
   TerminalSpawnOptions,
   WorkshopExportResult,
   WorkshopManifest,
+  WindowState,
   CategoryNode,
   SeriesNode,
   TagNode,
@@ -42,7 +45,8 @@ export interface StudyApi {
     openExternal(url: string): Promise<void>
     openPath(target: string): Promise<string>
     revealPath(target: string): Promise<void>
-    window(action: 'minimize' | 'maximize' | 'unmaximize' | 'close' | 'toggle-fullscreen'): Promise<void>
+    window(action: WindowAction): Promise<void>
+    windowState(): Promise<WindowState>
     devtools(): Promise<void>
     relaunch(): Promise<void>
     quit(): Promise<void>
@@ -156,7 +160,27 @@ export interface StudyApi {
     status(): Promise<{ running: boolean; lastRun: number | null; mountId: string | null }>
     run(): Promise<SyncResult[]>
   }
+  history: {
+    list(limit?: number): Promise<HistoryEntry[]>
+    add(entry: Partial<HistoryEntry>): Promise<HistoryEntry[]>
+    remove(id: string): Promise<HistoryEntry[]>
+    clear(): Promise<void>
+  }
+  notes: {
+    list(nodeId?: string): Promise<NoteEntry[]>
+    upsert(entry: Partial<NoteEntry> & { nodeId: string }): Promise<NoteEntry>
+    remove(id: string): Promise<NoteEntry[]>
+    clear(nodeId: string): Promise<NoteEntry[]>
+  }
   events: {
     subscribe(listener: (event: import('./channels').StudyEvent) => void): () => void
   }
 }
+
+export type WindowAction =
+  | 'minimize'
+  | 'maximize'
+  | 'unmaximize'
+  | 'toggle-maximize'
+  | 'close'
+  | 'toggle-fullscreen'

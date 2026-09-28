@@ -21,6 +21,9 @@ import * as errors from '../services/errors'
 import * as terminal from '../services/terminal'
 import * as playground from '../services/playground'
 import * as xuexitong from '../services/xuexitong'
+import * as history from '../services/history'
+import * as notes from '../services/notes'
+import { broadcastWindowState } from '../window'
 
 type Payload = Record<string, unknown>
 type Handler = (payload: Payload, event: Electron.IpcMainInvokeEvent) => unknown | Promise<unknown>
@@ -67,12 +70,26 @@ const handlers: Record<string, Handler> = {
       case 'unmaximize':
         window.unmaximize()
         break
+      case 'toggle-maximize':
+        if (window.isMaximized()) window.unmaximize()
+        else window.maximize()
+        break
       case 'toggle-fullscreen':
         window.setFullScreen(!window.isFullScreen())
         break
       case 'close':
         window.close()
         break
+    }
+    broadcastWindowState(window)
+  },
+  [CHANNELS.app.windowState]: (_payload, event) => {
+    const window = BrowserWindow.fromWebContents(event.sender) ?? firstWindow()
+    if (!window) return { maximized: false, fullscreen: false, focused: true }
+    return {
+      maximized: window.isMaximized(),
+      fullscreen: window.isFullScreen(),
+      focused: window.isFocused()
     }
   },
   [CHANNELS.app.devtools]: () => {
@@ -125,7 +142,17 @@ const handlers: Record<string, Handler> = {
   [CHANNELS.library.read]: async (payload) => {
     const found = libraryService.findNode(asString(payload.nodeId))
     if (!found) throw new Error('?????')
-    return readDocument(found.node)
+    const document = await readDocument(found.node)
+    history.addHistory({
+      kind: found.kind,
+      title: found.node.title,
+      subtitle: `${document.format.toUpperCase()} · ${
+        found.kind === 'paper' ? '??' : '??'
+      }${found.node.format === 'folder' ? ` · ${found.node.chapters.length} ?` : ''}`,
+      refId: found.node.id,
+      route: `/reader/${found.kind}/${found.node.id}`
+    })
+    return document
   },
   [CHANNELS.library.write]: async (payload) => {
     const found = libraryService.findNode(asString(payload.nodeId))
@@ -198,7 +225,17 @@ const handlers: Record<string, Handler> = {
   [CHANNELS.ai.setRouting]: (payload) => ai.setRouting(payload.routing as Record<string, string | null>),
   [CHANNELS.ai.test]: (payload) => ai.testProvider(asString(payload.id)),
   [CHANNELS.ai.chat]: (payload) => ai.chat(payload as never),
-  [CHANNELS.ai.generateScript]: (payload) => generateScript(payload as never),
+  [CHANNELS.ai.generateScript]: async (payload) => {
+    const script = await generateScript(payload as never)
+    history.addHistory({
+      kind: 'script',
+      title: script.title,
+      subtitle: `${script.lines.length} ? · ${script.model ?? '????'}`,
+      refId: script.id,
+      route: `/galgame/${script.id}`
+    })
+    return script
+  },
 
   /* ------------------------------- characters ------------------------------- */
   [CHANNELS.characters.list]: () => characters.listCharacters(),
@@ -264,7 +301,20 @@ const handlers: Record<string, Handler> = {
 
   /* -------------------------------- archive --------------------------------- */
   [CHANNELS.archive.list]: () => archive.listSaves(),
-  [CHANNELS.archive.upsert]: (payload) => archive.upsertSave(payload as never),
+  [CHANNELS.archive.upsert]: (payload) => {
+    const isNew = !payload.id
+    const save = archive.upsertSave(payload as never)
+    if (isNew && save.scriptId) {
+      history.addHistory({
+        kind: 'save',
+        title: save.title,
+        subtitle: `?? · ${save.kind === 'paper' ? '??' : '??'}`,
+        refId: save.scriptId,
+        route: `/galgame/${save.scriptId}`
+      })
+    }
+    return save
+  },
   [CHANNELS.archive.remove]: (payload) => {
     archive.removeSave(asString(payload.id))
   },
@@ -331,6 +381,18 @@ const handlers: Record<string, Handler> = {
   [CHANNELS.xuexitong.launch]: () => xuexitong.launch(),
   [CHANNELS.xuexitong.submit]: (payload) => xuexitong.submit(payload as never),
   [CHANNELS.xuexitong.config]: (payload) => xuexitong.configure(payload as never),
+
+  /* --------------------------------- history -------------------------------- */
+  [CHANNELS.history.list]: (payload) => history.listHistory(asNumber(payload.limit, 0)),
+  [CHANNELS.history.add]: (payload) => history.addHistory(payload as never),
+  [CHANNELS.history.remove]: (payload) => history.removeHistory(asString(payload.id)),
+  [CHANNELS.history.clear]: () => history.clearHistory(),
+
+  /* ---------------------------------- notes --------------------------------- */
+  [CHANNELS.notes.list]: (payload) => notes.listNotes(payload.nodeId ? asString(payload.nodeId) : undefined),
+  [CHANNELS.notes.upsert]: (payload) => notes.upsertNote(payload as never),
+  [CHANNELS.notes.remove]: (payload) => notes.removeNote(asString(payload.id)),
+  [CHANNELS.notes.clear]: (payload) => notes.clearNotes(asString(payload.nodeId)),
 
   /* ---------------------------------- sync ---------------------------------- */
   [CHANNELS.sync.status]: () => ({

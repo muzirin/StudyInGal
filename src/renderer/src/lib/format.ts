@@ -38,3 +38,24 @@ export function toLocalInput(timestamp: number): string {
   const date = new Date(timestamp - new Date(timestamp).getTimezoneOffset() * 60000)
   return date.toISOString().slice(0, 16)
 }
+
+export function formatRelative(timestamp: number): string {
+  const diff = Date.now() - timestamp
+  if (diff < 60_000) return '刚刚'
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
+  const days = Math.floor(diff / 86_400_000)
+  if (days === 1) return '昨天'
+  if (days < 7) return `${days} 天前`
+  return formatDate(timestamp)
+}
+
+export function dayBucket(timestamp: number): '今天' | '昨天' | '本周' | '更早' {
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  const today = start.getTime()
+  if (timestamp >= today) return '今天'
+  if (timestamp >= today - 86_400_000) return '昨天'
+  if (timestamp >= today - 86_400_000 * 7) return '本周'
+  return '更早'
+}

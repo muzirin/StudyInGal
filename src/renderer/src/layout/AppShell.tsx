@@ -1,315 +1,250 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  AppBar,
   Box,
   Chip,
   Divider,
   Drawer,
   Fab,
   IconButton,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  ListSubheader,
   Paper,
   Stack,
-  Toolbar,
   Tooltip,
   Typography,
   useMediaQuery
 } from '@mui/material'
-import { useTheme } from '@mui/material/styles'
+import { alpha, useTheme } from '@mui/material/styles'
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
+import MenuOpenRoundedIcon from '@mui/icons-material/MenuOpenRounded'
+import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
-import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded'
-import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded'
-import ContrastRoundedIcon from '@mui/icons-material/ContrastRounded'
+import ViewSidebarRoundedIcon from '@mui/icons-material/ViewSidebarRounded'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { TitleBar } from './TitleBar'
+import { NavPanel } from './NavPanel'
+import { RouteTransition } from '../components/RouteTransition'
+import { CommandPalette } from '../components/CommandPalette'
 import { GROUP_ORDER, MODULES, pathToModuleId, type ModuleDef } from '../modules/registry'
 import { useAppStore } from '../state/appStore'
 
-const NAV_WIDTH = 252
+const NAV_WIDTH = 264
+const RAIL_WIDTH = 76
 
 export function AppShell() {
   const theme = useTheme()
   const location = useLocation()
-  const compactViewport = useMediaQuery('(max-width: 960px)')
+  const compactViewport = useMediaQuery('(max-width: 980px)')
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [rail, setRail] = useState(false)
 
   const settings = useAppStore((state) => state.settings)
-  const patchSettings = useAppStore((state) => state.patchSettings)
   const openAsk = useAppStore((state) => state.openAsk)
+  const patchSettings = useAppStore((state) => state.patchSettings)
+  const crumb = useAppStore((state) => state.crumb)
+  const setCrumb = useAppStore((state) => state.setCrumb)
 
-  const themeSettings = settings?.theme
-  const position = themeSettings?.navPosition ?? 'left'
-  const developerEnabled = settings?.developer.enabled ?? false
+  const position = settings?.theme.navPosition ?? 'left'
+  const devEnabled = settings?.developer.enabled ?? false
+  const hidden = settings?.nav.hidden ?? []
 
   const visibleModules = useMemo(
     () =>
       MODULES.filter((module) => {
-        if ((settings?.nav.hidden ?? []).includes(module.id)) return false
-        if (module.devOnly && !developerEnabled) return false
+        if (hidden.includes(module.id)) return false
+        if (module.devOnly && !devEnabled) return false
         return true
       }),
-    [settings?.nav.hidden, developerEnabled]
+    [hidden, devEnabled]
   )
 
   const activeId = pathToModuleId(location.pathname)
   const activeModule = MODULES.find((module) => module.id === activeId)
 
+  useEffect(() => {
+    setMobileOpen(false)
+    setCrumb(null)
+  }, [location.pathname, setCrumb])
+
+  const navWidth = rail ? RAIL_WIDTH : NAV_WIDTH
   const horizontal = position === 'top' || position === 'bottom'
 
-  const renderNavItems = (moduleList: ModuleDef[], onNavigate?: () => void) => {
-    const grouped = GROUP_ORDER.map((group) => ({
-      group,
-      items: moduleList.filter((module) => module.group === group)
-    })).filter((entry) => entry.items.length > 0)
-
-    return grouped.map((entry) => (
-      <Box key={entry.group}>
-        <ListSubheader
-          disableSticky
-          sx={{ bgcolor: 'transparent', fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase' }}
-        >
-          {entry.group}
-        </ListSubheader>
-        <List dense disablePadding>
-          {entry.items.map((module) => {
-            const Icon = module.icon
-            return (
-              <ListItemButton
-                key={module.id}
-                component={NavLink}
-                to={module.path}
-                end={module.path === '/'}
-                selected={activeId === module.id}
-                onClick={onNavigate}
-                sx={{ mb: 0.5, textDecoration: 'none' }}
-              >
-                <ListItemIcon sx={{ minWidth: 38 }}>
-                  <Icon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText
-                  primary={module.label}
-                  secondary={!compactViewport ? module.description : undefined}
-                  secondaryTypographyProps={{
-                    variant: 'caption',
-                    noWrap: true,
-                    sx: { display: 'block', maxWidth: 170 }
-                  }}
-                />
-              </ListItemButton>
-            )
-          })}
-        </List>
-      </Box>
-    ))
-  }
-
-  const cycleMode = () => {
-    const order = ['system', 'light', 'dark'] as const
-    const current = themeSettings?.mode ?? 'system'
-    const next = order[(order.indexOf(current) + 1) % order.length]
-    void patchSettings({ theme: { ...(themeSettings ?? {}), mode: next } })
-  }
-
-  const ModeIcon = themeSettings?.mode === 'dark' ? DarkModeRoundedIcon : themeSettings?.mode === 'light' ? LightModeRoundedIcon : ContrastRoundedIcon
-
-  const drawer = (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Toolbar sx={{ gap: 1.5 }}>
-        <Box
-          sx={{
-            width: 34,
-            height: 34,
-            borderRadius: '50%',
-            background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-            display: 'grid',
-            placeItems: 'center',
-            fontSize: 18
-          }}
-        >
-          🌸
-        </Box>
-        <Box>
-          <Typography variant="subtitle1" fontWeight={700} lineHeight={1.1}>
-            StudyInGal
+  const navPane = (
+    <Stack
+      sx={{
+        width: horizontal || compactViewport ? NAV_WIDTH : navWidth,
+        flexShrink: 0,
+        height: '100%',
+        borderRight: position === 'left' ? '1px solid' : 'none',
+        borderLeft: position === 'right' ? '1px solid' : 'none',
+        borderColor: 'divider',
+        bgcolor: alpha(theme.palette.background.paper, 0.55),
+        backdropFilter: 'blur(10px)',
+        transition: 'width 200ms cubic-bezier(0.22, 1, 0.36, 1)'
+      }}
+    >
+      {!rail || compactViewport ? (
+        <Stack direction="row" alignItems="center" sx={{ px: 1.5, pt: 1.25, pb: 0.25 }}>
+          <Typography variant="caption" fontWeight={700} letterSpacing={1} color="text.disabled" sx={{ flexGrow: 1, pl: 0.5 }}>
+            导航
           </Typography>
-          <Typography variant="caption" color="text.secondary">
-            学习 × Galgame
-          </Typography>
-        </Box>
-      </Toolbar>
-      <Divider sx={{ mb: 1 }} />
-      <Box sx={{ flex: 1, overflowY: 'auto', px: 1 }}>{renderNavItems(visibleModules, () => setMobileOpen(false))}</Box>
-      <Divider />
-      <Box sx={{ p: 1.5 }}>
-        <Typography variant="caption" color="text.secondary">
-          GPL-3.0 · muzirin/StudyInGal
-        </Typography>
-      </Box>
-    </Box>
+          {!compactViewport ? (
+            <Tooltip title="收起为图标栏">
+              <IconButton size="small" onClick={() => setRail(true)}>
+                <ChevronLeftRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : null}
+        </Stack>
+      ) : (
+        <Stack alignItems="center" sx={{ pt: 1.25 }}>
+          <Tooltip title="展开导航" placement="right">
+            <IconButton size="small" onClick={() => setRail(false)}>
+              <ChevronRightRoundedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      )}
+      <NavPanel collapsed={rail && !compactViewport} onNavigate={() => setMobileOpen(false)} />
+    </Stack>
   )
 
-  const topNav = (
-    <Toolbar variant="dense" sx={{ gap: 1, overflowX: 'auto' }}>
-      {visibleModules.map((module) => {
-        const Icon = module.icon
-        return (
-          <Chip
-            key={module.id}
-            icon={<Icon fontSize="small" />}
-            label={module.label}
-            component={NavLink}
-            to={module.path}
-            clickable
-            color={activeId === module.id ? 'primary' : 'default'}
-            variant={activeId === module.id ? 'filled' : 'outlined'}
-            sx={{ textDecoration: 'none', flexShrink: 0 }}
-          />
-        )
-      })}
-    </Toolbar>
-  )
-
-  const bottomNav = (
+  const horizontalNav = (
     <Paper
       square
-      elevation={8}
-      sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: theme.zIndex.appBar, pb: 'env(safe-area-inset-bottom)' }}
+      elevation={0}
+      sx={{
+        flexShrink: 0,
+        borderBottom: position === 'top' ? '1px solid' : 'none',
+        borderTop: position === 'bottom' ? '1px solid' : 'none',
+        borderColor: 'divider',
+        order: position === 'bottom' ? 3 : 0
+      }}
     >
-      <Toolbar variant="dense" sx={{ gap: 1, overflowX: 'auto', justifyContent: 'center' }}>
-        {visibleModules.slice(0, 6).map((module) => {
-          const Icon = module.icon
+      <Stack
+        direction="row"
+        spacing={1.5}
+        alignItems="center"
+        sx={{ px: 2, py: 0.75, overflowX: 'auto' }}
+        className="sig-scroll-thin"
+      >
+        {GROUP_ORDER.map((group) => {
+          const children = visibleModules.filter((module) => module.group === group)
+          if (children.length === 0) return null
           return (
-            <Box
-              key={module.id}
-              component={NavLink}
-              to={module.path}
-              sx={{
-                textDecoration: 'none',
-                color: activeId === module.id ? 'primary.main' : 'text.secondary',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                px: 1.5,
-                minWidth: 64
-              }}
-            >
-              <Icon fontSize="small" />
-              <Typography variant="caption" noWrap>
-                {module.label}
+            <Stack key={group} direction="row" spacing={0.75} alignItems="center" sx={{ flexShrink: 0 }}>
+              <Typography variant="caption" color="text.disabled" fontWeight={700} sx={{ mr: 0.25 }}>
+                {group}
               </Typography>
-            </Box>
+              {children.map((module) => (
+                <NavChip key={module.id} module={module} active={activeId === module.id} />
+              ))}
+              <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+            </Stack>
           )
         })}
-      </Toolbar>
+      </Stack>
     </Paper>
   )
 
   return (
-    <Box sx={{ display: 'flex', height: '100%' }}>
-      {position === 'left' && !compactViewport ? (
-        <Drawer
-          variant="permanent"
-          anchor="left"
-          sx={{
-            width: NAV_WIDTH,
-            flexShrink: 0,
-            '& .MuiDrawer-paper': { width: NAV_WIDTH, boxSizing: 'border-box', borderRight: '1px solid', borderColor: 'divider' }
-          }}
-        >
-          {drawer}
-        </Drawer>
-      ) : null}
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <TitleBar
+        title={crumb?.label ?? activeModule?.label ?? '总览'}
+        subtitle={crumb?.hint ?? activeModule?.feature}
+        leading={
+          compactViewport ? (
+            <IconButton className="no-drag" size="small" onClick={() => setMobileOpen(true)} aria-label="打开导航">
+              <MenuRoundedIcon fontSize="small" />
+            </IconButton>
+          ) : null
+        }
+      />
 
-      {position === 'right' && !compactViewport ? (
-        <Drawer
-          variant="permanent"
-          anchor="right"
-          sx={{
-            width: NAV_WIDTH,
-            flexShrink: 0,
-            '& .MuiDrawer-paper': { width: NAV_WIDTH, boxSizing: 'border-box', borderLeft: '1px solid', borderColor: 'divider' }
-          }}
-        >
-          {drawer}
-        </Drawer>
-      ) : null}
+      <Box sx={{ display: 'flex', flexGrow: 1, minHeight: 0 }}>
+        {!horizontal && !compactViewport && position === 'left' ? navPane : null}
 
-      {horizontal || compactViewport ? (
-        <Drawer
-          variant="temporary"
-          anchor="left"
-          open={mobileOpen}
-          onClose={() => setMobileOpen(false)}
-          ModalProps={{ keepMounted: true }}
-          sx={{ '& .MuiDrawer-paper': { width: NAV_WIDTH, boxSizing: 'border-box' } }}
-        >
-          {drawer}
-        </Drawer>
-      ) : null}
-
-      <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: 0, height: '100%' }}>
-        <AppBar
-          position="static"
-          color="transparent"
-          elevation={0}
-          sx={{ backdropFilter: 'blur(12px)', borderBottom: '1px solid', borderColor: 'divider' }}
-        >
-          <Toolbar sx={{ gap: 1 }}>
-            {position === 'left' || position === 'right' || compactViewport ? (
-              <IconButton edge="start" onClick={() => setMobileOpen(true)} aria-label="打开导航">
-                <MenuRoundedIcon />
-              </IconButton>
-            ) : null}
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle1" fontWeight={700} noWrap>
-                {activeModule?.label ?? 'StudyInGal'}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" noWrap>
-                {activeModule?.feature ?? '学习 × Galgame 一体化桌面系统'}
-              </Typography>
-            </Box>
-            <Box sx={{ flexGrow: 1 }} />
-            <Tooltip title={`配色模式：${themeSettings?.mode ?? 'system'}（点击切换）`}>
-              <IconButton onClick={cycleMode}>
-                <ModeIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="一键询问当前内容">
-              <IconButton onClick={() => openAsk()}>
-                <HelpOutlineRoundedIcon />
-              </IconButton>
-            </Tooltip>
-          </Toolbar>
-          {position === 'top' ? topNav : null}
-        </AppBar>
-
-        <Box
-          component="main"
-          sx={{
-            flexGrow: 1,
-            overflow: 'auto',
-            p: compactViewport ? 1.5 : 3,
-            pb: position === 'bottom' ? 10 : compactViewport ? 1.5 : 3
-          }}
-        >
-          <Outlet />
+        <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: 0, minHeight: 0 }}>
+          {horizontal ? horizontalNav : null}
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              overflow: 'auto',
+              px: compactViewport ? 1.5 : 3,
+              py: compactViewport ? 1.5 : 2.5,
+              pb: compactViewport ? 10 : 5
+            }}
+            className="sig-scroll-thin"
+          >
+            <RouteTransition>
+              <Outlet />
+            </RouteTransition>
+          </Box>
         </Box>
+
+        {!horizontal && !compactViewport && position === 'right' ? navPane : null}
       </Box>
 
-      {position === 'bottom' ? bottomNav : null}
-
-      <Fab
-        color="primary"
-        aria-label="一键询问"
-        onClick={() => openAsk()}
-        sx={{ position: 'fixed', right: 24, bottom: position === 'bottom' ? 88 : 24, zIndex: theme.zIndex.speedDial }}
+      <Drawer
+        variant="temporary"
+        anchor="left"
+        open={mobileOpen && compactViewport}
+        onClose={() => setMobileOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{ '& .MuiDrawer-paper': { width: NAV_WIDTH, boxSizing: 'border-box' } }}
       >
-        <HelpOutlineRoundedIcon />
-      </Fab>
+        <Stack direction="row" alignItems="center" sx={{ px: 2, py: 1.5 }}>
+          <Typography variant="subtitle2" fontWeight={700} sx={{ flexGrow: 1 }}>
+            StudyInGal
+          </Typography>
+          <IconButton size="small" onClick={() => setMobileOpen(false)}>
+            <MenuOpenRoundedIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+        <Divider />
+        <NavPanel collapsed={false} onNavigate={() => setMobileOpen(false)} />
+      </Drawer>
+
+      <CommandPalette />
+
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ position: 'fixed', right: 24, bottom: position === 'bottom' ? 76 : 24, zIndex: theme.zIndex.speedDial }}
+      >
+        <Tooltip title="切换导航位置（设置）">
+          <Fab
+            size="small"
+            color="default"
+            onClick={() => void patchSettings({ theme: { ...(settings?.theme as object), navPosition: 'left' } })}
+            sx={{ display: { xs: 'none', md: 'flex' } }}
+          >
+            <ViewSidebarRoundedIcon fontSize="small" />
+          </Fab>
+        </Tooltip>
+        <Tooltip title="一键询问（Ctrl+Shift+K）">
+          <Fab color="primary" aria-label="一键询问" onClick={() => openAsk()}>
+            <HelpOutlineRoundedIcon />
+          </Fab>
+        </Tooltip>
+      </Stack>
     </Box>
+  )
+}
+
+function NavChip({ module, active }: { module: ModuleDef; active: boolean }) {
+  const Icon = module.icon
+  return (
+    <Chip
+      icon={<Icon sx={{ fontSize: 16 }} />}
+      label={module.label}
+      component={NavLink}
+      to={module.path}
+      clickable
+      size="small"
+      color={active ? 'primary' : 'default'}
+      variant={active ? 'filled' : 'outlined'}
+      sx={{ textDecoration: 'none', flexShrink: 0, fontWeight: active ? 700 : 500 }}
+    />
   )
 }

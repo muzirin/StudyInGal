@@ -1,4 +1,5 @@
 import { app, BrowserWindow, session } from 'electron'
+import { writeFile } from 'node:fs/promises'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { registerIpc } from './ipc/index'
 import { createWindow } from './window'
@@ -43,6 +44,32 @@ if (!gotLock) {
     const window = createWindow()
     if (getSettings().developer.openDevToolsOnStart) {
       window.webContents.openDevTools({ mode: 'detach' })
+    }
+
+    // 视觉回归 / 自动化截图：设置 SIG_CAPTURE_PATH 后启动，会截图并退出。
+    const capturePath = process.env.SIG_CAPTURE_PATH
+    if (capturePath) {
+      window.webContents.once('did-finish-load', () => {
+        const delay = Number(process.env.SIG_CAPTURE_DELAY ?? 3200)
+        const route = process.env.SIG_CAPTURE_ROUTE
+        const shoot = (): void => {
+          setTimeout(() => {
+            void window.webContents
+              .capturePage()
+              .then((image) => writeFile(capturePath, image.toPNG()))
+              .catch((error: Error) => console.error('[StudyInGal] 截图失败', error.message))
+              .finally(() => app.exit(0))
+          }, delay)
+        }
+        if (route) {
+          void window.webContents
+            .executeJavaScript(`window.location.hash = ${JSON.stringify(`#${route}`)}`)
+            .then(() => shoot())
+            .catch(() => shoot())
+        } else {
+          shoot()
+        }
+      })
     }
 
     app.on('activate', () => {

@@ -1,0 +1,152 @@
+/* ------------------------------------------------------------------ *
+ * StudyInGal 全局样式：无边框窗口拖拽区、快速遮罩转场、页面动画
+ * ------------------------------------------------------------------ */
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* 无边框窗口下禁止整页被拖动造成误触 */
+body {
+  overscroll-behavior: none;
+}
+
+/* ------------------------------ 遮罩转场 ------------------------------ */
+
+.sig-transition-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 2600;
+  pointer-events: none;
+  background: linear-gradient(135deg, var(--sig-mask-a), var(--sig-mask-b));
+  will-change: clip-path, opacity;
+}
+
+.sig-transition-mask[data-phase='in'] {
+  animation: sig-mask-in 170ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.sig-transition-mask[data-phase='out'] {
+  animation: sig-mask-out 210ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+@keyframes sig-mask-in {
+  from {
+    clip-path: circle(0% at var(--sig-mask-origin, 82% 14%));
+    opacity: 0.35;
+  }
+  to {
+    clip-path: circle(145% at var(--sig-mask-origin, 82% 14%));
+    opacity: 1;
+  }
+}
+
+@keyframes sig-mask-out {
+  from {
+    clip-path: circle(145% at var(--sig-mask-origin, 82% 14%));
+    opacity: 1;
+  }
+  to {
+    clip-path: circle(0% at var(--sig-mask-exit, 18% 86%));
+    opacity: 0;
+  }
+}
+
+/* ------------------------------ 页面入场 ------------------------------ */
+
+.sig-page-enter {
+  animation: sig-page-enter 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes sig-page-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --------------------------- 层级展开/折叠 --------------------------- */
+
+.sig-collapse {
+  overflow: hidden;
+  transition: height 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease;
+}
+
+/* ------------------------------ 立绘呼吸 ------------------------------ */
+
+.sig-breathe {
+  animation: sig-breathe 5.5s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+@keyframes sig-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.012);
+  }
+}
+
+.sig-float-slow {
+  animation: sig-float 7s ease-in-out infinite;
+}
+
+@keyframes sig-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -14px, 0);
+  }
+}
+
+/* ------------------------------- 打字机 ------------------------------- */
+
+.sig-caret::after {
+  content: '▍';
+  margin-left: 2px;
+  animation: sig-caret 1s steps(2, start) infinite;
+}
+
+@keyframes sig-caret {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* ------------------------------ 通用细节 ------------------------------ */
+
+.sig-scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.sig-scroll-thin::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mui-palette-primary-main) 32%, transparent);
+}
+
+.sig-scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sig-transition-mask,
+  .sig-page-enter,
+  .sig-breathe,
+  .sig-float-slow,
+  .sig-caret::after {
+    animation: none !important;
+  }
+}

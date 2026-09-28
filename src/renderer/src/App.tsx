@@ -8,7 +8,7 @@ import { AppShell } from './layout/AppShell'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Toaster } from './components/Toaster'
 import { GlobalAsk } from './components/GlobalAsk'
-import { DashboardPage } from './pages/DashboardPage'
+import { HomePage } from './pages/HomePage'
 import { LibraryPage } from './pages/LibraryPage'
 import { ReaderPage } from './pages/ReaderPage'
 import { EditorPage } from './pages/EditorPage'
@@ -22,7 +22,7 @@ import { PlaygroundPage } from './pages/PlaygroundPage'
 import { CharactersPage } from './pages/CharactersPage'
 import { WorkshopPage } from './pages/WorkshopPage'
 import { CloudPage } from './pages/CloudPage'
-import { SettingsPage } from './pages/SettingsPage'
+import { SettingsPage } from './pages/settings/SettingsPage'
 import { DevToolsPage } from './pages/DevToolsPage'
 import { ProactiveCompanion } from './components/ProactiveCompanion'
 
@@ -105,10 +105,10 @@ export function App() {
         <HashRouter>
           <Routes>
             <Route element={<AppShell />}>
-              <Route path="/" element={<DashboardPage />} />
+              <Route path="/" element={<HomePage />} />
               <Route path="/library/:kind" element={<LibraryPage />} />
-              <Route path="/reader/:nodeId" element={<ReaderPage />} />
-              <Route path="/editor/:nodeId" element={<EditorPage />} />
+              <Route path="/reader/:kind/:nodeId" element={<ReaderPage />} />
+              <Route path="/editor/:kind/:nodeId" element={<EditorPage />} />
               <Route path="/companion" element={<CompanionPage />} />
               <Route path="/galgame" element={<GalgamePage />} />
               <Route path="/galgame/:scriptId" element={<GalgamePlayerPage />} />
