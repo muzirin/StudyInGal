@@ -35,7 +35,9 @@ export default defineConfig({
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src'),
-        '@shared': resolve('src/shared')
+        '@shared': resolve('src/shared'),
+        // 移动端桥复用了主进程的纯逻辑模块（桌面端渲染层也会引用到）
+        '@mainlib': resolve('src/main/lib')
       }
     },
     build: {
