@@ -22,6 +22,7 @@ npm run dev
 - **TypeScript strict**，提交前必须通过：
   ```bash
   npm run typecheck
+  npm test
   npm run build
   ```
 - 主进程与渲染进程之间**只能**通过 `src/shared/channels.ts` 中登记的 IPC 通道通信；

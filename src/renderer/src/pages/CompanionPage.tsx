@@ -39,6 +39,7 @@ import { MarkdownView } from '../components/MarkdownView'
 import { Live2DStage } from '../components/Live2DStage'
 import { EmptyState } from '../components/Section'
 import { formatRelative } from '../lib/format'
+import { guessEmotion } from '../lib/emotion'
 import type { Character, ChatMessage, Conversation } from '@shared/types'
 
 const EMOTION_EMOJI: Record<string, string> = {
@@ -51,16 +52,6 @@ const EMOTION_EMOJI: Record<string, string> = {
   excited: '🤩',
   sad: '😢',
   angry: '😠'
-}
-
-function guessEmotion(text: string): string {
-  if (/(哈哈|嘿嘿|太好|太棒|开心|😄|😊)/.test(text)) return 'happy'
-  if (/(哇|竟然|居然|没想到|😮)/.test(text)) return 'surprised'
-  if (/(抱歉|遗憾|可惜|难过|😢)/.test(text)) return 'sad'
-  if (/(注意|务必|小心|警告|重要)/.test(text)) return 'serious'
-  if (/(\?|？|想一想|思考|也许)/.test(text)) return 'thinking'
-  if (/(害羞|不好意思|😳)/.test(text)) return 'shy'
-  return 'neutral'
 }
 
 type Panel = 'chat' | 'character' | 'history'

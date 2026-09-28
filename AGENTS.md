@@ -7,6 +7,7 @@
 ```bash
 npm run dev          # 开发（Electron + Vite）
 npm run typecheck    # 类型检查（必须通过）
+npm test             # 单元测试（vitest，必须通过）
 npm run build        # 构建 out/（必须通过）
 npm run build:win    # 打包 Windows
 ```

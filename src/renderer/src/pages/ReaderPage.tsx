@@ -38,33 +38,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
 import { MarkdownView } from '../components/MarkdownView'
+import { sectionsFromMarkdown } from '../lib/markdown'
 import type { ChapterRef, DocumentContent, LibraryKind, NoteEntry } from '@shared/types'
-
-interface FlatSection {
-  title: string
-  anchor: string
-  content: string
-}
-
-const ANCHOR = (title: string): string => `#${title}`
-
-function sectionsFromMarkdown(markdown: string): FlatSection[] {
-  const lines = markdown.split('\n')
-  const sections: FlatSection[] = []
-  let current: FlatSection | null = null
-  for (const line of lines) {
-    const match = line.match(/^(#{1,3})\s+(.+)$/)
-    if (match) {
-      if (current) sections.push(current)
-      const title = match[2].trim()
-      current = { title, anchor: ANCHOR(title), content: '' }
-    } else if (current) {
-      current.content += `${line}\n`
-    }
-  }
-  if (current) sections.push(current)
-  return sections.filter((section) => section.content.trim().length > 0)
-}
 
 export function ReaderPage() {
   const theme = useTheme()
@@ -79,7 +54,7 @@ export function ReaderPage() {
 
   const [document, setDocument] = useState<DocumentContent | null>(null)
   const [chapters, setChapters] = useState<ChapterRef[]>([])
-  const [sections, setSections] = useState<FlatSection[]>([])
+  const [sections, setSections] = useState<ReturnType<typeof sectionsFromMarkdown>>([])
   const [activeChapter, setActiveChapter] = useState<string>('')
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState<LibraryKind>('paper')

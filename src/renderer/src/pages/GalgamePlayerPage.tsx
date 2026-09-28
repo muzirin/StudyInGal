@@ -39,7 +39,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
 import { EmptyState, Section } from '../components/Section'
-import type { ArchiveSave, Character, DialogueLine, GalScript } from '@shared/types'
+import { buildScenes } from '../lib/scenes'
+import type { ArchiveSave, Character, GalScript } from '@shared/types'
 
 const EMOTION_EMOJI: Record<string, string> = {
   neutral: '🙂',
@@ -58,31 +59,6 @@ interface Scene {
   title: string
   start: number
   end: number
-}
-
-function buildScenes(lines: DialogueLine[]): Scene[] {
-  if (lines.length === 0) return []
-  const scenes: Scene[] = []
-  let start = 0
-
-  const push = (end: number): void => {
-    const slice = lines.slice(start, end + 1)
-    const firstCharacter = slice.find((line) => line.speaker === 'character')
-    const title = (firstCharacter ?? slice[0]).text.replace(/[#*>\n]/g, ' ').trim().slice(0, 22) || `第 ${scenes.length + 1} 幕`
-    scenes.push({ index: scenes.length, title, start, end })
-  }
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index]
-    const isNarrationBreak = line.speaker === 'narration' && index - start >= 2
-    const isTooLong = index - start >= 14
-    if (isNarrationBreak || isTooLong) {
-      push(index - 1)
-      start = index
-    }
-  }
-  push(lines.length - 1)
-  return scenes
 }
 
 export function GalgamePlayerPage() {
