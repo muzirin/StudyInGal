@@ -7,6 +7,7 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  IconButton,
   MenuItem,
   Stack,
   TextField,
@@ -15,6 +16,7 @@ import {
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded'
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded'
+import SaveRoundedIcon from '@mui/icons-material/SaveRounded'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
@@ -36,6 +38,8 @@ export function GalgamePage() {
   const [maxLines, setMaxLines] = useState(60)
   const [focus, setFocus] = useState('')
   const [busy, setBusy] = useState(false)
+  const [query, setQuery] = useState('')
+  const [sortBy, setSortBy] = useState<'recent' | 'lines' | 'title'>('recent')
 
   const refresh = async (): Promise<void> => {
     const [papers, textbooks, characterList, scriptList] = await Promise.all([
@@ -58,6 +62,27 @@ export function GalgamePage() {
   }, [])
 
   const selectedSource = useMemo(() => nodes.find((node) => node.id === sourceId) ?? null, [nodes, sourceId])
+
+  const sourceTitle = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const node of nodes) map.set(node.id, node.title)
+    return map
+  }, [nodes])
+
+  const visibleScripts = useMemo(() => {
+    const keyword = query.trim().toLowerCase()
+    const filtered = keyword
+      ? scripts.filter((script) => `${script.title} ${script.model ?? ''}`.toLowerCase().includes(keyword))
+      : scripts
+    switch (sortBy) {
+      case 'lines':
+        return [...filtered].sort((a, b) => b.lines.length - a.lines.length)
+      case 'title':
+        return [...filtered].sort((a, b) => a.title.localeCompare(b.title, 'zh-Hans-CN'))
+      default:
+        return [...filtered].sort((a, b) => b.updatedAt - a.updatedAt)
+    }
+  }, [scripts, query, sortBy])
 
   const generate = async (): Promise<void> => {
     if (!sourceId || !characterId) {
@@ -134,35 +159,91 @@ export function GalgamePage() {
 
       {busy ? <Alert severity="info" icon={<CircularProgress size={16} />}>正在让伴学娘阅读并改写剧本，长论文可能需要一两分钟…</Alert> : null}
 
-      <Section title={`已有剧本 · ${scripts.length}`} subtitle="点击继续游玩，进度会保存到存档">
+      <Section
+        title={`已有剧本 · ${scripts.length}`}
+        subtitle="点击继续游玩，进度会保存到存档"
+        action={
+          <Stack direction="row" spacing={1}>
+            <TextField
+              size="small"
+              placeholder="搜索剧本"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              sx={{ width: 160 }}
+            />
+            <TextField
+              select
+              size="small"
+              label="排序"
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as typeof sortBy)}
+              sx={{ width: 130 }}
+            >
+              <MenuItem value="recent">最近更新</MenuItem>
+              <MenuItem value="lines">行数</MenuItem>
+              <MenuItem value="title">标题</MenuItem>
+            </TextField>
+          </Stack>
+        }
+      >
         {scripts.length === 0 ? (
-          <EmptyState title="还没有剧本" description="选择一篇论文或教材，生成第一段伴学 Galgame 吧。" />
+          <EmptyState
+            title="还没有剧本"
+            description="选择一篇论文或教材，生成第一段伴学 Galgame 吧。"
+            action={
+              <Button variant="contained" startIcon={<AutoAwesomeRoundedIcon />} onClick={() => void generate()} disabled={!sourceId || busy}>
+                立即生成
+              </Button>
+            }
+          />
+        ) : visibleScripts.length === 0 ? (
+          <EmptyState title="没有匹配的剧本" description="换一个关键词试试。" />
         ) : (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(3, 1fr)' }, gap: 2 }}>
-            {scripts.map((script) => (
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(3, 1fr)' }, gap: 2, p: 2 }}>
+            {visibleScripts.map((script) => (
               <Card key={script.id} elevation={0}>
                 <CardContent>
-                  <Typography variant="subtitle2" fontWeight={700} noWrap>
+                  <Typography variant="subtitle2" fontWeight={700} noWrap title={script.title}>
                     {script.title}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    {script.lines.length} 行 · {script.model ?? '未知模型'} · {formatDateTime(script.updatedAt)}
+                  <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                    源：{sourceTitle.get(script.sourceId) ?? '（已移除）'} · {script.sourceKind === 'textbook' ? '教材' : '论文'}
                   </Typography>
-                  <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
+                  <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ my: 1 }}>
+                    <Chip size="small" label={`${script.lines.length} 行`} />
+                    <Chip size="small" variant="outlined" label={script.model ?? '未知模型'} />
+                  </Stack>
+                  <Typography variant="caption" color="text.disabled" display="block">
+                    更新于 {formatDateTime(script.updatedAt)}
+                  </Typography>
+                  <Stack direction="row" spacing={1} sx={{ mt: 1.5 }} flexWrap="wrap" useFlexGap>
                     <Button size="small" variant="contained" startIcon={<PlayArrowRoundedIcon />} onClick={() => navigate(`/galgame/${script.id}`)}>
                       游玩
                     </Button>
                     <Button
                       size="small"
-                      color="inherit"
-                      startIcon={<DeleteRoundedIcon />}
+                      variant="outlined"
+                      startIcon={<SaveRoundedIcon />}
+                      onClick={async () => {
+                        try {
+                          await api.gal.exportSave(script.id, null)
+                          toast('success', '存档已导出到本地 archive 目录')
+                        } catch (error) {
+                          toast('error', `导出失败：${(error as Error).message}`)
+                        }
+                      }}
+                    >
+                      导出存档
+                    </Button>
+                    <IconButton
+                      size="small"
                       onClick={async () => {
                         await api.gal.deleteScript(script.id)
                         await refresh()
                       }}
                     >
-                      删除
-                    </Button>
+                      <DeleteRoundedIcon fontSize="small" />
+                    </IconButton>
                   </Stack>
                 </CardContent>
               </Card>

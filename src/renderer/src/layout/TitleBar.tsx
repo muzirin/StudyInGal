@@ -8,6 +8,7 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
+import { ShortcutHelpButton } from '../components/ShortcutHelp'
 import type { WindowState } from '@shared/types'
 
 const isMac = window.study?.platform === 'darwin'
@@ -144,6 +145,8 @@ export function TitleBar({
           </Box>
         ) : null}
       </Stack>
+
+      <ShortcutHelpButton />
 
       <Tooltip title="一键询问（Ctrl+Shift+K）">
         <IconButton className="no-drag" size="small" onClick={() => openAsk()} sx={{ mr: 0.5 }}>

@@ -93,6 +93,7 @@ export const api: StudyApi = {
   workshop: {
     list: () => invoke(CHANNELS.workshop.list),
     export: (input) => invoke(CHANNELS.workshop.export, input),
+    exportConfig: (target) => invoke(CHANNELS.workshop.exportConfig, { target }),
     validate: (bundlePath) => invoke(CHANNELS.workshop.validate, { bundlePath }),
     install: (bundlePath) => invoke(CHANNELS.workshop.install, { bundlePath })
   },

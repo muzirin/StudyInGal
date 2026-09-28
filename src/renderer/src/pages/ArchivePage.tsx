@@ -30,6 +30,8 @@ export function ArchivePage() {
   const [saves, setSaves] = useState<ArchiveSave[]>([])
   const [query, setQuery] = useState('')
   const [favoriteOnly, setFavoriteOnly] = useState(false)
+  const [kindFilter, setKindFilter] = useState<'all' | 'paper' | 'textbook'>('all')
+  const [sortBy, setSortBy] = useState<'recent' | 'progress' | 'title'>('recent')
 
   const refresh = async (): Promise<void> => {
     setSaves(await api.archive.list())
@@ -39,12 +41,31 @@ export function ArchivePage() {
     void refresh()
   }, [])
 
-  const filtered = useMemo(
-    () =>
-      saves
-        .filter((save) => (favoriteOnly ? save.favorite : true))
-        .filter((save) => (query ? save.title.toLowerCase().includes(query.toLowerCase()) : true)),
-    [saves, favoriteOnly, query]
+  const filtered = useMemo(() => {
+    const keyword = query.trim().toLowerCase()
+    const list = saves
+      .filter((save) => (favoriteOnly ? save.favorite : true))
+      .filter((save) => (kindFilter === 'all' ? true : save.kind === kindFilter))
+      .filter((save) => (keyword ? save.title.toLowerCase().includes(keyword) : true))
+    switch (sortBy) {
+      case 'progress':
+        return [...list].sort((a, b) => b.progress - a.progress)
+      case 'title':
+        return [...list].sort((a, b) => a.title.localeCompare(b.title, 'zh-Hans-CN'))
+      default:
+        return [...list].sort((a, b) => (b.lastPlayedAt ?? b.updatedAt) - (a.lastPlayedAt ?? a.updatedAt))
+    }
+  }, [saves, favoriteOnly, kindFilter, query, sortBy])
+
+  const stats = useMemo(
+    () => ({
+      total: saves.length,
+      inProgress: saves.filter((save) => save.progress > 0 && save.progress < 1).length,
+      finished: saves.filter((save) => save.progress >= 1).length,
+      favorites: saves.filter((save) => save.favorite).length,
+      remote: saves.filter((save) => save.storage !== 'local').length
+    }),
+    [saves]
   )
 
   return (
@@ -53,20 +74,51 @@ export function ArchivePage() {
         title={`存档管理 · ${saves.length}`}
         subtitle="论文/教材转 Gal 的进度、标签、收藏与云盘位置"
         action={
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <TextField
               size="small"
               placeholder="搜索存档"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               InputProps={{ startAdornment: <InputAdornment position="start">🔍</InputAdornment> }}
+              sx={{ width: 180 }}
             />
+            <TextField select size="small" label="排序" value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)} sx={{ width: 130 }}>
+              <MenuItem value="recent">最近游玩</MenuItem>
+              <MenuItem value="progress">进度</MenuItem>
+              <MenuItem value="title">标题</MenuItem>
+            </TextField>
             <Button variant={favoriteOnly ? 'contained' : 'outlined'} startIcon={favoriteOnly ? <StarRoundedIcon /> : <StarBorderRoundedIcon />} onClick={() => setFavoriteOnly((value) => !value)}>
               收藏
             </Button>
           </Stack>
         }
       >
+        <Stack direction="row" spacing={1} sx={{ px: 2, pt: 0.5, pb: 1 }} flexWrap="wrap" useFlexGap>
+          {(
+            [
+              { id: 'all', label: '全部' },
+              { id: 'paper', label: '论文' },
+              { id: 'textbook', label: '教材' }
+            ] as const
+          ).map((item) => (
+            <Chip
+              key={item.id}
+              size="small"
+              label={item.label}
+              clickable
+              color={kindFilter === item.id ? 'primary' : 'default'}
+              variant={kindFilter === item.id ? 'filled' : 'outlined'}
+              onClick={() => setKindFilter(item.id)}
+            />
+          ))}
+          <Box sx={{ flexGrow: 1 }} />
+          <Chip size="small" variant="outlined" label={`共 ${stats.total}`} />
+          <Chip size="small" variant="outlined" color="info" label={`进行中 ${stats.inProgress}`} />
+          <Chip size="small" variant="outlined" color="success" label={`已完成 ${stats.finished}`} />
+          <Chip size="small" variant="outlined" color="warning" label={`收藏 ${stats.favorites}`} />
+          {stats.remote > 0 ? <Chip size="small" variant="outlined" label={`云盘 ${stats.remote}`} /> : null}
+        </Stack>
         {filtered.length === 0 ? (
           <EmptyState title="暂无存档" description="在「Gal 工坊」生成剧本并开始游玩后，进度会自动保存到这里。" action={<Button variant="contained" onClick={() => navigate('/galgame')}>去生成剧本</Button>} />
         ) : (

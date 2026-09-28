@@ -14,6 +14,7 @@ import {
 import PublishRoundedIcon from '@mui/icons-material/PublishRounded'
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import VerifiedRoundedIcon from '@mui/icons-material/VerifiedRounded'
+import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded'
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
@@ -87,6 +88,18 @@ export function WorkshopPage() {
         subtitle="定义清单 → 选择文件 → 导出 .sigpkg"
         action={
           <Stack direction="row" spacing={1}>
+            <Button
+              size="small"
+              startIcon={<FileDownloadRoundedIcon />}
+              onClick={async () => {
+                const target = await api.dialogs.saveFile({ defaultPath: 'study-in-gal-config.json' })
+                if (!target) return
+                const result = await api.workshop.exportConfig(target)
+                toast('success', `已导出配置（${result.bytes} 字节，密钥已脱敏）`)
+              }}
+            >
+              一键导出配置
+            </Button>
             <Button size="small" startIcon={<VerifiedRoundedIcon />} onClick={async () => {
               const path = await api.dialogs.pickFiles({ filters: [{ name: '资源包', extensions: ['sigpkg'] }], multi: false })
               if (!path[0]) return

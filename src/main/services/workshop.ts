@@ -4,6 +4,9 @@ import { basename, dirname, join, relative } from 'node:path'
 import { gunzipSync, gzipSync } from 'node:zlib'
 import { walkFiles } from '../lib/fsutil'
 import { workshopDir } from '../lib/paths'
+import { getSettings } from './settings'
+import { listCharacters } from './characters'
+import { listMounts } from './cloud/index'
 import type { WorkshopAsset, WorkshopExportResult, WorkshopManifest } from '@shared/types'
 
 interface BundleShape {
@@ -114,4 +117,38 @@ export async function installBundle(bundlePath: string): Promise<{ ok: boolean; 
   }
   await writeFile(join(target, 'manifest.json'), JSON.stringify(bundle.manifest, null, 2), 'utf8')
   return { ok: true, message: `已安装到 ${relative(workshopDir(), target) || target}` }
+}
+
+const SECRET_KEYS = new Set(['password', 'cookie', 'apiKey', 'token', 'secret', 'privateKey'])
+
+function stripSecrets(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripSecrets)
+  if (value && typeof value === 'object') {
+    const output: Record<string, unknown> = {}
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      output[key] = SECRET_KEYS.has(key) ? (nested ? '__REDACTED__' : nested) : stripSecrets(nested)
+    }
+    return output
+  }
+  return value
+}
+
+/**
+ * 一键导出配置：设置（脱敏）、角色卡、云盘挂载（脱敏）。
+ * 便于换机迁移或分享给别人作为起点。不含任何 API Key / 密码 / Cookie。
+ */
+export async function exportConfig(target: string): Promise<{ path: string; bytes: number; redacted: boolean }> {
+  const settings = getSettings()
+  const payload = {
+    schemaVersion: 1,
+    app: 'StudyInGal',
+    exportedAt: Date.now(),
+    settings: stripSecrets(settings),
+    characters: listCharacters(),
+    mounts: listMounts().map((mount) => ({ ...mount, config: stripSecrets(mount.config) }))
+  }
+  const text = JSON.stringify(payload, null, 2)
+  await mkdir(dirname(target), { recursive: true })
+  await writeFile(target, text, 'utf8')
+  return { path: target, bytes: Buffer.byteLength(text), redacted: true }
 }

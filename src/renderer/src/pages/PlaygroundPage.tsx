@@ -4,6 +4,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   MenuItem,
   Stack,
   Table,
@@ -17,6 +21,7 @@ import {
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
+import SchoolRoundedIcon from '@mui/icons-material/SchoolRounded'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
 import { Section } from '../components/Section'
@@ -43,6 +48,8 @@ export function PlaygroundPage() {
   const [result, setResult] = useState<RunCodeResult | null>(null)
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<{ installed: boolean; installPath: string } | null>(null)
+  const [submitOpen, setSubmitOpen] = useState(false)
+  const [taskId, setTaskId] = useState('')
 
   const refresh = async (): Promise<void> => {
     setRuntimes(await api.playground.runtimes())
@@ -191,7 +198,14 @@ export function PlaygroundPage() {
         <Section
           title="运行结果"
           subtitle={`${result.command} · 退出码 ${result.exitCode ?? '—'} · ${result.durationMs} ms`}
-          action={result.timedOut ? <Chip size="small" color="warning" label="超时终止" /> : null}
+          action={
+            <Stack direction="row" spacing={1} alignItems="center">
+              {result.timedOut ? <Chip size="small" color="warning" label="超时终止" /> : null}
+              <Button size="small" variant="outlined" startIcon={<SchoolRoundedIcon />} onClick={() => setSubmitOpen(true)}>
+                作为作业提交到学习通
+              </Button>
+            </Stack>
+          }
         >
           <Stack spacing={1.5} sx={{ p: 2 }}>
             {result.stdout ? (
@@ -204,6 +218,48 @@ export function PlaygroundPage() {
           </Stack>
         </Section>
       ) : null}
+
+      <Dialog open={submitOpen} onClose={() => setSubmitOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>提交到学习通</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Alert severity="info" icon={false}>
+              将把当前代码与运行输出作为答案提交。需要先在「设置 → 学习通托管」配置 Fanxing 服务地址。
+            </Alert>
+            <TextField
+              autoFocus
+              label="任务 ID / 作业标识"
+              value={taskId}
+              onChange={(event) => setTaskId(event.target.value)}
+              fullWidth
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSubmitOpen(false)}>取消</Button>
+          <Button
+            variant="contained"
+            disabled={!taskId.trim()}
+            onClick={async () => {
+              const content = [
+                `\`\`\`${language}`,
+                code,
+                '```',
+                '',
+                `运行输出：`,
+                '```',
+                (result?.stdout ?? '').slice(0, 4000),
+                '```'
+              ].join('\n')
+              const outcome = await api.xuexitong.submit({ taskId: taskId.trim(), content })
+              toast(outcome.ok ? 'success' : 'error', outcome.message)
+              if (outcome.ok) setSubmitOpen(false)
+            }}
+          >
+            提交
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   )
 }

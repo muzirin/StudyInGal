@@ -129,6 +129,7 @@ export interface StudyApi {
   workshop: {
     list(): Promise<WorkshopManifest[]>
     export(input: { manifest: Partial<WorkshopManifest>; target: string; include: string[] }): Promise<WorkshopExportResult>
+    exportConfig(target: string): Promise<{ path: string; bytes: number; redacted: boolean }>
     validate(bundlePath: string): Promise<{ ok: boolean; errors: string[]; manifest: WorkshopManifest | null }>
     install(bundlePath: string): Promise<{ ok: boolean; message: string }>
   }

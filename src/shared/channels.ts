@@ -87,6 +87,7 @@ export const CHANNELS = {
   workshop: {
     list: 'workshop:list',
     export: 'workshop:export',
+    exportConfig: 'workshop:exportConfig',
     validate: 'workshop:validate',
     install: 'workshop:install'
   },

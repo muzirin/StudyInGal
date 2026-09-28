@@ -162,11 +162,17 @@ export function CommandPalette() {
       if (mod && event.shiftKey && event.key.toLowerCase() === 'k') {
         event.preventDefault()
         openAsk()
+        return
+      }
+      if (mod && event.key === ',') {
+        event.preventDefault()
+        setOpen(false)
+        navigate('/settings')
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [openAsk])
+  }, [openAsk, navigate])
 
   useEffect(() => {
     const node = listRef.current?.querySelector('[data-active="true"]')

@@ -355,6 +355,7 @@ const handlers: Record<string, Handler> = {
   /* -------------------------------- workshop -------------------------------- */
   [CHANNELS.workshop.list]: () => workshop.listInstalledAsync(),
   [CHANNELS.workshop.export]: (payload) => workshop.exportBundle(payload as never),
+  [CHANNELS.workshop.exportConfig]: (payload) => workshop.exportConfig(asString(payload.target)),
   [CHANNELS.workshop.validate]: (payload) => workshop.validateBundle(asString(payload.bundlePath)),
   [CHANNELS.workshop.install]: (payload) => workshop.installBundle(asString(payload.bundlePath)),
 
