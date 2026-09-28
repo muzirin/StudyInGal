@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">StudyInGal</string>
+    <string name="title_activity_main">StudyInGal</string>
+    <string name="package_name">com.muzirin.studyingal</string>
+    <string name="custom_url_scheme">com.muzirin.studyingal</string>
+</resources>

@@ -21,3 +21,5 @@ coverage/
 *.tsbuildinfo
 .screens/
 .screens-dark/
+dist-mobile/
+src/renderer/public/assets-bundled/

@@ -16,7 +16,8 @@
     "paths": {
       "@renderer/*": ["./src/renderer/src/*"],
       "@shared/*": ["./src/shared/*"],
-      "@main/*": ["./src/main/*"]
+      "@main/*": ["./src/main/*"],
+      "@mainlib/*": ["./src/main/lib/*"]
     }
   },
   "include": ["src", "electron.vite.config.ts"]

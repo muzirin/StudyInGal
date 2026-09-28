@@ -9,9 +9,12 @@ import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
 import { ShortcutHelpButton } from '../components/ShortcutHelp'
+import { runningOnMobile } from '../lib/assets'
 import type { WindowState } from '@shared/types'
 
 const isMac = window.study?.platform === 'darwin'
+/** 移动端由系统提供状态栏，不显示自绘窗口按钮 */
+const isMobile = runningOnMobile()
 
 function ControlButton({
   title,
@@ -82,12 +85,12 @@ export function TitleBar({
     <Box
       className="drag-region"
       sx={{
-        height: 44,
+        height: isMobile ? 52 : 44,
         flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
         gap: 1,
-        pl: isMac ? 10 : 1.5,
+        pl: isMobile ? 2 : isMac ? 10 : 1.5,
         pr: 0.75,
         borderBottom: '1px solid',
         borderColor: 'divider',
@@ -154,7 +157,7 @@ export function TitleBar({
         </IconButton>
       </Tooltip>
 
-      {!isMac ? (
+      {!isMac && !isMobile ? (
         <Stack direction="row" spacing={0.25} className="no-drag">
           <ControlButton title="最小化" onClick={() => void api.app.window('minimize')}>
             <MinimizeRoundedIcon sx={{ fontSize: 16 }} />
