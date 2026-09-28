@@ -86,7 +86,7 @@ export const MODULES: ModuleDef[] = [
     icon: SaveRoundedIcon,
     group: '学习',
     description: '本地/云盘存档、标签、收藏与进度',
-    feature: '存档管理'
+    feature: '进度与收藏追踪'
   },
   {
     id: 'notes',
@@ -113,7 +113,7 @@ export const MODULES: ModuleDef[] = [
     icon: SchoolRoundedIcon,
     group: '工具',
     description: '接入 Fanxing 子系统，完成非编程作业',
-    feature: '学习通托管'
+    feature: '非编程作业托管'
   },
   {
     id: 'playground',
@@ -140,7 +140,7 @@ export const MODULES: ModuleDef[] = [
     icon: StorefrontRoundedIcon,
     group: '资源',
     description: '打包/校验/安装资源包，支持自部署 CDN 与一键导出配置',
-    feature: '创意工坊'
+    feature: '资源包与配置分发'
   },
   {
     id: 'cloud',

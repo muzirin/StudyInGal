@@ -102,7 +102,15 @@ function TerminalPanel() {
     termRef.current?.focus()
   }
 
-  const presets = ['npm run typecheck', 'npm run build', 'git status', 'git log --oneline -5', 'npm outdated']
+  const presets = [
+    'npm run typecheck',
+    'npm test',
+    'npm run build',
+    'npm run typecheck; npm test; npm run build',
+    'git status',
+    'git log --oneline -5',
+    'npm outdated'
+  ]
 
   return (
     <Section
@@ -128,7 +136,15 @@ function TerminalPanel() {
       </Alert>
       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
         {presets.map((preset) => (
-          <Chip key={preset} size="small" variant="outlined" label={preset} clickable onClick={() => send(preset)} />
+          <Chip
+            key={preset}
+            size="small"
+            variant={preset.includes(';') ? 'filled' : 'outlined'}
+            color={preset.includes(';') ? 'primary' : 'default'}
+            label={preset.includes(';') ? '运行自检（typecheck + test + build）' : preset}
+            clickable
+            onClick={() => send(preset)}
+          />
         ))}
       </Stack>
       <Box ref={containerRef} sx={{ height: 460, borderRadius: 2, overflow: 'hidden', bgcolor: '#14121a', p: 1 }} />
