@@ -61,6 +61,10 @@
     "tesseract.js": "^7.0.0",
     "zustand": "^5.0.15"
   },
+  "optionalDependencies": {
+    "pixi-live2d-display": "^0.4.0",
+    "pixi.js": "^7.4.3"
+  },
   "devDependencies": {
     "@types/katex": "^0.16.8",
     "@types/node": "^26.6.3",

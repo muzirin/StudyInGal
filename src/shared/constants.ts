@@ -85,6 +85,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   live2d: {
     enabled: false,
     modelPath: null,
+    coreUrl: '',
     scale: 1,
     x: 0.5,
     y: 0,

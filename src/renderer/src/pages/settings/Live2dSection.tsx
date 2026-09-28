@@ -1,4 +1,4 @@
-import { Alert, Box, Button, FormControlLabel, Slider, Stack, Switch, Typography } from '@mui/material'
+import { Alert, Box, Button, FormControlLabel, Slider, Stack, Switch, TextField, Typography } from '@mui/material'
 import { api } from '../../api'
 import { useAppStore } from '../../state/appStore'
 import { Section } from '../../components/Section'
@@ -20,6 +20,16 @@ export function Live2dSection() {
         <FormControlLabel
           control={<Switch checked={live2d.enabled} onChange={(event) => void patchSettings({ live2d: { ...live2d, enabled: event.target.checked } })} />}
           label="启用 Live2D 渲染"
+        />
+
+        <TextField
+          size="small"
+          label="Cubism Core 脚本地址"
+          placeholder="https://your-cdn.example.com/live2dcubismcore.min.js"
+          value={live2d.coreUrl}
+          onChange={(event) => void patchSettings({ live2d: { ...live2d, coreUrl: event.target.value } })}
+          helperText="Cubism Core 由 Live2D Inc. 授权，需自行获取并托管；留空则尝试使用页面已加载的 Live2DCubismCore。"
+          fullWidth
         />
 
         <Stack direction="row" spacing={3} flexWrap="wrap" useFlexGap>

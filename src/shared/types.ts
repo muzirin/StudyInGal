@@ -547,6 +547,7 @@ export interface AppSettings {
   live2d: {
     enabled: boolean
     modelPath: string | null
+    coreUrl: string
     scale: number
     x: number
     y: number
