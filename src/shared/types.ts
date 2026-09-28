@@ -253,6 +253,8 @@ export interface GalScript {
   sourceKind: LibraryKind
   title: string
   characterId: string
+  /** 该剧本使用的场景背景 id（来自内置背景或用户导入的背景） */
+  sceneId: string | null
   lines: DialogueLine[]
   providerId: string | null
   model: string | null

@@ -52,7 +52,11 @@ export function RouteTransition({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <Box key={routeKey} className="sig-page-enter sig-scroll-thin" sx={{ minHeight: '100%' }}>
+      <Box
+        key={routeKey}
+        className="sig-page-enter sig-scroll-thin"
+        sx={{ flexGrow: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column' }}
+      >
         {children}
       </Box>
       {phase !== 'idle' ? (

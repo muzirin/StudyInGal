@@ -37,8 +37,10 @@ const GROUPS: { title: string; items: { keys: string; label: string }[] }[] = [
     title: '伴学娘与 Galgame',
     items: [
       { keys: 'Ctrl + Enter', label: '发送对话消息' },
-      { keys: '点击画面', label: '推进到下一句台词' },
-      { keys: '空格 / 自动播放', label: '自动播放剧本' }
+      { keys: '空格 / 点击正文', label: '推进到下一句台词' },
+      { keys: 'F 或 F11', label: 'Galgame 全屏游玩（隐藏导航与标题栏）' },
+      { keys: 'Esc', label: '退出全屏 / 关闭弹窗' },
+      { keys: '自动播放', label: '按节奏自动推进剧本' }
     ]
   }
 ]

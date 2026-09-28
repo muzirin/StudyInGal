@@ -28,6 +28,8 @@ interface AppState {
   askOpen: boolean
   askContext: AskContext
   crumb: Crumb | null
+  /** 沉浸模式：隐藏标题栏与侧边导航，内容铺满窗口（Galgame 全屏游玩时使用） */
+  immersive: boolean
   bootstrap: () => Promise<void>
   patchSettings: (patch: Record<string, unknown>) => Promise<AppSettings | null>
   resetSettings: () => Promise<void>
@@ -36,6 +38,7 @@ interface AppState {
   openAsk: (context?: AskContext) => void
   closeAsk: () => void
   setCrumb: (crumb: Crumb | null) => void
+  setImmersive: (value: boolean) => void
 }
 
 const newId = (): string => Math.random().toString(36).slice(2, 10)
@@ -49,6 +52,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   askOpen: false,
   askContext: {},
   crumb: null,
+  immersive: false,
 
   bootstrap: async () => {
     try {
@@ -90,5 +94,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   openAsk: (context) => set({ askOpen: true, askContext: context ?? {} }),
   closeAsk: () => set({ askOpen: false }),
-  setCrumb: (crumb) => set({ crumb })
+  setCrumb: (crumb) => set({ crumb }),
+  setImmersive: (value) => set({ immersive: value })
 }))

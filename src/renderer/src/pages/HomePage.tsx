@@ -43,23 +43,10 @@ import { MarkdownView } from '../components/MarkdownView'
 import { dayBucket, formatRelative } from '../lib/format'
 import { toAssetUrl } from '../lib/assets'
 import { useCharacterSprite } from '../lib/bundledAssets'
+import { pickBackgroundByTime, resolveBackground, useBackgrounds } from '../lib/backgrounds'
 import { NAV_GROUPS, MODULES } from '../modules/registry'
 import { GITHUB_URL } from '@shared/constants'
-import type { BundledAssets, Character, CustomScene, HistoryEntry, HistoryKind } from '@shared/types'
-
-interface SceneDef {
-  id: string
-  name: string
-  url: string
-  custom?: boolean
-}
-
-/** 按当前时段在场景列表里轮换（不使用随机，保证同一天内稳定）。 */
-function sceneForNow(scenes: SceneDef[]): SceneDef | null {
-  if (scenes.length === 0) return null
-  const hour = new Date().getHours()
-  return scenes[Math.floor(hour / 4) % scenes.length]
-}
+import type { Character, CustomScene, HistoryEntry, HistoryKind } from '@shared/types'
 
 const HISTORY_FILTERS: { id: 'all' | HistoryKind; label: string }[] = [
   { id: 'all', label: '全部' },
@@ -116,7 +103,7 @@ export function HomePage() {
   const [panel, setPanel] = useState<'nav' | 'recent' | null>(null)
   const [counts, setCounts] = useState({ paper: 0, textbook: 0, saves: 0, scripts: 0 })
   const [examplesAdded, setExamplesAdded] = useState(false)
-  const [bundled, setBundled] = useState<BundledAssets>({ backgrounds: [], sprites: [], defaultSprite: null })
+  const backgrounds = useBackgrounds()
 
   const companion = useMemo(
     () =>
@@ -127,25 +114,10 @@ export function HomePage() {
     [characters, settings?.companion.activeCharacterId]
   )
 
-  const scenes = useMemo<SceneDef[]>(() => {
-    const builtin: SceneDef[] = bundled.backgrounds.map((background) => ({
-      id: background.id,
-      name: background.name,
-      url: toAssetUrl(background.path) ?? background.path
-    }))
-    const custom: SceneDef[] = (settings?.home?.customScenes ?? []).map((scene: CustomScene) => ({
-      id: scene.id,
-      name: scene.name,
-      url: toAssetUrl(scene.path) ?? scene.path,
-      custom: true
-    }))
-    return [...builtin, ...custom]
-  }, [bundled.backgrounds, settings?.home?.customScenes])
-
-  const activeScene = useMemo(() => {
-    if (settings?.home?.autoScene !== false) return sceneForNow(scenes)
-    return scenes.find((scene) => scene.id === settings?.home?.sceneId) ?? sceneForNow(scenes)
-  }, [scenes, settings?.home?.autoScene, settings?.home?.sceneId])
+  const activeScene = useMemo(
+    () => resolveBackground(backgrounds, settings?.home?.autoScene === false ? settings?.home?.sceneId : null),
+    [backgrounds, settings?.home?.autoScene, settings?.home?.sceneId]
+  )
 
   const refreshHistory = useCallback(async () => {
     setHistory(await api.history.list(60).catch(() => []))
@@ -153,16 +125,14 @@ export function HomePage() {
 
   useEffect(() => {
     void (async () => {
-      const [characterList, saves, papers, textbooks, scripts, assets] = await Promise.all([
+      const [characterList, saves, papers, textbooks, scripts] = await Promise.all([
         api.characters.list().catch(() => []),
         api.archive.list().catch(() => []),
         api.library.snapshot('paper').catch(() => null),
         api.library.snapshot('textbook').catch(() => null),
-        api.gal.listScripts().catch(() => []),
-        api.assets.list().catch(() => ({ backgrounds: [], sprites: [], defaultSprite: null }))
+        api.gal.listScripts().catch(() => [])
       ])
       setCharacters(characterList)
-      setBundled(assets)
       setCounts({
         paper: papers?.nodes.length ?? 0,
         textbook: textbooks?.nodes.length ?? 0,
@@ -591,7 +561,7 @@ export function HomePage() {
             border: '1px solid rgba(255,255,255,0.14)'
           }}
         >
-          {scenes.map((scene) => (
+          {backgrounds.map((scene) => (
             <Chip
               key={scene.id}
               size="small"
@@ -614,7 +584,7 @@ export function HomePage() {
             size="small"
             label="恢复自动"
             onClick={() => {
-              const next = sceneForNow(scenes)
+              const next = pickBackgroundByTime(backgrounds)
               void patchSettings({ home: { ...(settings?.home as object), ...(next ? { sceneId: next.id } : {}), autoScene: true } })
             }}
             sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)', bgcolor: 'rgba(255,255,255,0.1)' }}

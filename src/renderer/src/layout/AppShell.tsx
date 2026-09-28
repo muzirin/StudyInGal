@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Box,
   Chip,
@@ -19,6 +19,7 @@ import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
 import ViewSidebarRoundedIcon from '@mui/icons-material/ViewSidebarRounded'
+import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { TitleBar } from './TitleBar'
 import { NavPanel } from './NavPanel'
@@ -43,6 +44,8 @@ export function AppShell() {
   const patchSettings = useAppStore((state) => state.patchSettings)
   const crumb = useAppStore((state) => state.crumb)
   const setCrumb = useAppStore((state) => state.setCrumb)
+  const immersive = useAppStore((state) => state.immersive)
+  const setImmersive = useAppStore((state) => state.setImmersive)
 
   const position = settings?.theme.navPosition ?? 'left'
   const devEnabled = settings?.developer.enabled ?? false
@@ -62,10 +65,17 @@ export function AppShell() {
   const activeModule = MODULES.find((module) => module.id === activeId)
   const isHome = location.pathname === '/'
 
+  const firstRouteEffect = useRef(true)
   useEffect(() => {
     setMobileOpen(false)
     setCrumb(null)
-  }, [location.pathname, setCrumb])
+    // 首次挂载不要重置沉浸模式，否则会覆盖页面自己设置的初始状态（如 ?immersive=1）
+    if (firstRouteEffect.current) {
+      firstRouteEffect.current = false
+      return
+    }
+    setImmersive(false)
+  }, [location.pathname, setCrumb, setImmersive])
 
   const navWidth = rail ? RAIL_WIDTH : NAV_WIDTH
   const horizontal = position === 'top' || position === 'bottom'
@@ -148,6 +158,24 @@ export function AppShell() {
     </Paper>
   )
 
+  if (immersive) {
+    return (
+      <Box sx={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+        <Box sx={{ flexGrow: 1, minHeight: 0, position: 'relative', p: 2 }}>
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
+        </Box>
+        <Tooltip title="退出沉浸模式（Esc）">
+          <Fab size="small" color="default" onClick={() => setImmersive(false)} sx={{ position: 'fixed', top: 16, right: 16, zIndex: 1400 }}>
+            <CloseFullscreenRoundedIcon fontSize="small" />
+          </Fab>
+        </Tooltip>
+        <CommandPalette />
+      </Box>
+    )
+  }
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <TitleBar
@@ -172,6 +200,9 @@ export function AppShell() {
             sx={{
               flexGrow: 1,
               position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
               overflow: isHome ? 'hidden' : 'auto',
               px: isHome ? 0 : compactViewport ? 1.5 : 3,
               py: isHome ? 0 : compactViewport ? 1.5 : 2.5,
