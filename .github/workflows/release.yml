@@ -50,6 +50,15 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # 三平台并行时，electron-builder 会各自创建草稿 release，
+      # 导致 Windows/Linux 与 macOS 被分到两个 release（历史上出现过）。
+      # 这里先统一创建/复用同一个草稿 release，避免竞态。
+      - name: Ensure draft release exists
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --draft --title "StudyInGal $GITHUB_REF_NAME" --notes "Release $GITHUB_REF_NAME"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build & publish
         run: npm run ${{ matrix.script }} -- --publish always
         env:
