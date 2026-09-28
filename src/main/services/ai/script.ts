@@ -1,12 +1,19 @@
 import { newId } from '../../lib/util'
 import { parseDialogueJson } from '../../lib/jsonLines'
+import {
+  SAFE_FALLBACK_TOKENS,
+  estimateScriptTokens,
+  isMaxTokenError,
+  parseAllowedMaxTokens,
+  tokenCandidates
+} from '../../lib/aiTokens'
 import { emitEvent } from '../../lib/events'
 import { findNode } from '../library'
 import { mergeNode, readDocument } from '../documents'
 import { listCharacters } from '../characters'
 import { saveScript } from '../scripts'
 import { chat, resolveProvider } from './client'
-import type { DialogueLine, GalGenerateOptions, GalScript } from '@shared/types'
+import type { ChatRequest, ChatResponse, DialogueLine, GalGenerateOptions, GalScript } from '@shared/types'
 
 const EMOTIONS = ['neutral', 'happy', 'thinking', 'surprised', 'serious', 'shy', 'excited', 'sad', 'angry']
 
@@ -19,12 +26,29 @@ const DEPTH_BUDGET: Record<GalGenerateOptions['depth'], { chars: number; instruc
 /**
  * 剧本输出所需的 max_tokens 预算。
  * 中文对话 + JSON 结构大约每行 100~150 tokens，这里按 150 估算并留出固定开销。
- * 上限取 8192：DeepSeek 等主流模型的单次输出上限，超过会被 API 直接拒绝。
+ * 各家的上限差异很大（DeepSeek 8192、部分网关 393216），所以这里只给一个保守的期望值，
+ * 真正的上限由「被拒绝时按错误信息回退」来处理。
  */
-const SCRIPT_MAX_TOKENS = 8192
-const estimateTokens = (maxLines: number): number => Math.min(SCRIPT_MAX_TOKENS, 900 + maxLines * 150)
+const HARD_CAP = 16384
+const SAFE_FALLBACK = SAFE_FALLBACK_TOKENS
+const estimateTokens = estimateScriptTokens
 
-const isMaxTokenError = (message: string): boolean => /max_?tokens|maximum context|too large/i.test(message)
+/** 依次尝试一组 token 预算，直到成功；都是 max_tokens 类错误时抛最后一个。 */
+async function chatWithTokenLadder(
+  request: Omit<ChatRequest, 'maxTokens'>,
+  candidates: number[]
+): Promise<ChatResponse> {
+  let lastError: unknown = null
+  for (const tokens of candidates) {
+    try {
+      return await chat({ ...request, maxTokens: tokens })
+    } catch (error) {
+      lastError = error
+      if (!isMaxTokenError((error as Error).message)) throw error
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('模型拒绝了当前的 max_tokens 设置')
+}
 
 export async function generateScript(options: GalGenerateOptions): Promise<GalScript> {
   const found = findNode(options.sourceId)
@@ -70,18 +94,26 @@ export async function generateScript(options: GalGenerateOptions): Promise<GalSc
     { role: 'user' as const, content: user }
   ]
 
-  const requestedTokens = Math.max(provider.maxTokens, estimateTokens(options.maxLines))
-  let response
+  const request: Omit<ChatRequest, 'maxTokens'> = {
+    providerId: provider.id,
+    capability: 'script',
+    json: true,
+    messages
+  }
+  const target = estimateTokens(options.maxLines)
+  const providerMax = Number.isFinite(provider.maxTokens) && provider.maxTokens > 0 ? provider.maxTokens : SAFE_FALLBACK
+
+  let response: ChatResponse
   try {
-    response = await chat({ providerId: provider.id, capability: 'script', json: true, messages, maxTokens: requestedTokens })
+    response = await chatWithTokenLadder(request, [target])
   } catch (error) {
     const message = (error as Error).message
-    // 某些模型拒绝偏大的 max_tokens，回退到用户配置的值再试一次
-    if (isMaxTokenError(message) && requestedTokens > provider.maxTokens) {
-      response = await chat({ providerId: provider.id, capability: 'script', json: true, messages, maxTokens: provider.maxTokens })
-    } else {
-      throw error
-    }
+    if (!isMaxTokenError(message)) throw error
+    // 按网关给出的上限回退，其次依次尝试更保守的值
+    response = await chatWithTokenLadder(
+      request,
+      tokenCandidates(parseAllowedMaxTokens(message) ?? Math.min(providerMax, SAFE_FALLBACK), [SAFE_FALLBACK, 4096, 2048])
+    )
   }
 
   const parsed = parseDialogueJson(response.content, EMOTIONS)

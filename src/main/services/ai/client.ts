@@ -1,4 +1,5 @@
 import { getSettings, updateSettings } from '../settings'
+import { clampMaxTokens } from '../../lib/aiTokens'
 import type {
   AICapability,
   AIProviderConfig,
@@ -62,6 +63,7 @@ const supportsJsonMode = (provider: AIProviderConfig): boolean => {
 
 async function callOpenAICompatible(provider: AIProviderConfig, request: ChatRequest): Promise<ChatResponse> {
   const useJsonMode = Boolean(request.json) && supportsJsonMode(provider)
+  const maxTokens = clampMaxTokens(request.maxTokens ?? provider.maxTokens)
   const response = await fetch(`${normalizeBase(provider.baseUrl)}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -73,7 +75,7 @@ async function callOpenAICompatible(provider: AIProviderConfig, request: ChatReq
       model: provider.model,
       messages: request.messages,
       temperature: request.temperature ?? provider.temperature,
-      max_tokens: request.maxTokens ?? provider.maxTokens,
+      max_tokens: maxTokens,
       ...(useJsonMode ? { response_format: { type: 'json_object' } } : {})
     })
   })
@@ -111,7 +113,7 @@ async function callGemini(provider: AIProviderConfig, request: ChatRequest): Pro
         ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
         generationConfig: {
           temperature: request.temperature ?? provider.temperature,
-          maxOutputTokens: request.maxTokens ?? provider.maxTokens,
+          maxOutputTokens: clampMaxTokens(request.maxTokens ?? provider.maxTokens),
           ...(request.json ? { responseMimeType: 'application/json' } : {})
         }
       })
@@ -144,7 +146,7 @@ async function callAnthropic(provider: AIProviderConfig, request: ChatRequest): 
     },
     body: JSON.stringify({
       model: provider.model,
-      max_tokens: request.maxTokens ?? provider.maxTokens,
+      max_tokens: clampMaxTokens(request.maxTokens ?? provider.maxTokens),
       temperature: request.temperature ?? provider.temperature,
       ...(system ? { system } : {}),
       messages
@@ -186,3 +188,4 @@ export async function testProvider(id: string): Promise<{ ok: boolean; message: 
     return { ok: false, message: (error as Error).message }
   }
 }
+

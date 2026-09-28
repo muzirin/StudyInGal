@@ -272,9 +272,13 @@ export function AiSection() {
                   label="Max tokens"
                   type="number"
                   value={draft.maxTokens}
-                  onChange={(event) => setDraft({ ...draft, maxTokens: Number(event.target.value) })}
+                  onChange={(event) => {
+                    const raw = Number(event.target.value)
+                    const safe = Number.isFinite(raw) ? Math.min(Math.max(1, Math.floor(raw)), 131072) : 8192
+                    setDraft({ ...draft, maxTokens: safe })
+                  }}
                   fullWidth
-                  helperText="单次回复上限。剧本生成会自动按行数放大（最高 8192），过小会导致剧本被截断。"
+                  helperText="单次回复上限（1 ~ 131072）。剧本生成会按行数自动申请更大预算，过小会导致剧本被截断。"
                 />
               </Stack>
               <FormControlLabel
