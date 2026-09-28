@@ -27,6 +27,7 @@ import InfoRoundedIcon from '@mui/icons-material/InfoRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import ShieldRoundedIcon from '@mui/icons-material/ShieldRounded'
 import DesktopWindowsRoundedIcon from '@mui/icons-material/DesktopWindowsRounded'
+import QuizRoundedIcon from '@mui/icons-material/QuizRounded'
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded'
 import { useAppStore } from '../../state/appStore'
 import { EmptyState } from '../../components/Section'
@@ -40,6 +41,7 @@ import { SyncSection } from './SyncSection'
 import { DeveloperSection } from './DeveloperSection'
 import { AboutSection } from './AboutSection'
 import { PrivacySection } from './PrivacySection'
+import { QuizSection } from './QuizSection'
 import { DesktopSection } from './DesktopSection'
 
 interface SettingSectionDef {
@@ -108,6 +110,13 @@ export function SettingsPage() {
         hint: '自动同步与默认挂载',
         icon: <CloudSyncRoundedIcon fontSize="small" />,
         render: () => <SyncSection />
+      },
+      {
+        id: 'quiz',
+        label: '问答与测验',
+        hint: '随堂出题、判分与记录',
+        icon: <QuizRoundedIcon fontSize="small" />,
+        render: () => <QuizSection />
       },
       {
         id: 'desktop',

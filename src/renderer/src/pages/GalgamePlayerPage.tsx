@@ -39,16 +39,18 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import FullscreenRoundedIcon from '@mui/icons-material/FullscreenRounded'
 import FullscreenExitRoundedIcon from '@mui/icons-material/FullscreenExitRounded'
 import WallpaperRoundedIcon from '@mui/icons-material/WallpaperRounded'
+import QuizRoundedIcon from '@mui/icons-material/QuizRounded'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
 import { EmptyState, Section } from '../components/Section'
 import { Live2DStage } from '../components/Live2DStage'
+import { QuizDialog } from '../components/QuizDialog'
 import { buildScenes } from '../lib/scenes'
 import { resolveBackground, useBackgrounds } from '../lib/backgrounds'
 import { toAssetUrl } from '../lib/assets'
 import { useCharacterSprite } from '../lib/bundledAssets'
-import type { ArchiveSave, Character, GalScript } from '@shared/types'
+import type { ArchiveSave, Character, GalScript, QuizQuestion } from '@shared/types'
 
 const EMOTION_EMOJI: Record<string, string> = {
   neutral: '🙂',
@@ -62,16 +64,28 @@ const EMOTION_EMOJI: Record<string, string> = {
   angry: '😠'
 }
 
+/** 悬浮操作簇的玻璃样式 */
+const GLASS_CONTROL = {
+  p: 0.5,
+  borderRadius: 999,
+  bgcolor: 'rgba(16,10,22,0.55)',
+  backdropFilter: 'blur(12px)',
+  border: '1px solid rgba(255,255,255,0.16)',
+  color: '#fff'
+} as const
+
 export function GalgamePlayerPage() {
   const theme = useTheme()
   const { scriptId = '' } = useParams<{ scriptId: string }>()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const toast = useAppStore((state) => state.toast)
   const setCrumb = useAppStore((state) => state.setCrumb)
-  const [searchParams] = useSearchParams()
   const immersive = useAppStore((state) => state.immersive)
   const setImmersive = useAppStore((state) => state.setImmersive)
   const live2dEnabled = useAppStore((state) => state.settings?.live2d.enabled ?? false)
+  const quizAuto = useAppStore((state) => state.settings?.quiz?.autoAtSceneEnd ?? true)
+  const quizCount = useAppStore((state) => state.settings?.quiz?.count ?? 3)
   const compact = useMediaQuery('(max-width: 1100px)')
 
   const [script, setScript] = useState<GalScript | null>(null)
@@ -83,13 +97,22 @@ export function GalgamePlayerPage() {
   const [autoSpeak, setAutoSpeak] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
   const [sceneOpen, setSceneOpen] = useState(false)
+  const [backgroundOpen, setBackgroundOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [stageHeight, setStageHeight] = useState(420)
-  const [backgroundOpen, setBackgroundOpen] = useState(false)
+  const [quiz, setQuiz] = useState<{ open: boolean; questions: QuizQuestion[]; title: string }>({
+    open: false,
+    questions: [],
+    title: ''
+  })
+  const [regenerating, setRegenerating] = useState(false)
+  const askedQuestions = useRef<Set<string>>(new Set())
   const timerRef = useRef<number | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
   const fullscreenRef = useRef(false)
+  const lastSceneRef = useRef(-1)
+
   const backgrounds = useBackgrounds()
   const settingsHomeSceneId = useAppStore((state) => state.settings?.home?.sceneId ?? null)
   const background = useMemo(
@@ -119,7 +142,7 @@ export function GalgamePlayerPage() {
     }
   }, [scriptId, setCrumb])
 
-  // 支持 #/galgame/<id>?immersive=1 直接进入全屏游玩
+  // #/galgame/<id>?immersive=1 直接全屏游玩；?quiz=1 直接开始问答
   useEffect(() => {
     if (searchParams.get('immersive') === '1') setImmersive(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,7 +153,7 @@ export function GalgamePlayerPage() {
   const currentScene = useMemo(() => scenes.find((scene) => index >= scene.start && index <= scene.end) ?? null, [scenes, index])
   const sprite = useCharacterSprite(character, line?.emotion ?? 'neutral')
 
-  // 立绘区域高度自适应：窗口/沉浸模式变化时重新测量，立绘始终完整可见
+  // 场景区高度自适应：窗口/沉浸模式变化时重新测量，立绘始终完整可见
   useEffect(() => {
     const element = stageRef.current
     if (!element) return
@@ -220,6 +243,63 @@ export function GalgamePlayerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoSpeak, line?.id])
 
+  /* --------------------------------- 答题 --------------------------------- */
+
+  const quizQuestions = script?.questions ?? []
+
+  /** 每幕分配到的题量：题目总量 / 幕数，且不超过设置里的「每组题目数量」。 */
+  const perScene = Math.max(
+    1,
+    Math.min(quizCount, Math.ceil(quizQuestions.length / Math.max(1, scenes.length)))
+  )
+
+  const openQuizWith = (items: QuizQuestion[], title: string): void => {
+    if (items.length === 0) {
+      setQuiz({ open: true, questions: [], title: `${script?.title ?? ''} · 暂无题目` })
+      return
+    }
+    for (const item of items) askedQuestions.current.add(item.id)
+    setQuiz({ open: true, questions: items, title })
+  }
+
+  /** 给旧剧本（没有题目）补题，成功后写回剧本。 */
+  const regenerateQuestions = async (): Promise<{ questions: QuizQuestion[]; truncated: boolean }> => {
+    if (!script) return { questions: [], truncated: false }
+    setRegenerating(true)
+    try {
+      const result = await api.quiz.generateForScript(script.id, 6)
+      const fresh = await api.gal.getScript(script.id)
+      if (fresh) setScript(fresh)
+      toast('success', `已生成 ${result.questions.length} 道题并保存到剧本`)
+      return result
+    } finally {
+      setRegenerating(false)
+    }
+  }
+
+  // 每读完一幕，自动弹出这一幕对应的题目（题目随剧本生成，读取时不需要联网）
+  useEffect(() => {
+    if (!currentScene || !script) return
+    if (lastSceneRef.current === currentScene.index) return
+    const previous = lastSceneRef.current
+    lastSceneRef.current = currentScene.index
+    if (previous < 0) return
+    if (!quizAuto) return
+    const pending = quizQuestions.filter((item) => !askedQuestions.current.has(item.id))
+    if (pending.length === 0) return
+    openQuizWith(pending.slice(0, perScene), `${script.title} · 第 ${currentScene.index + 1} 幕`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentScene?.index, quizAuto, quizQuestions.length, script?.id])
+
+  // ?quiz=1 直接开始问答
+  useEffect(() => {
+    if (searchParams.get('quiz') !== '1' || !script) return
+    openQuizWith(quizQuestions.slice(0, Math.max(perScene, 3)), `${script.title} · 随堂问答`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, script?.id, quizQuestions.length])
+
+  /* ------------------------------ 全屏与快捷键 ------------------------------ */
+
   const toggleFullscreen = async (): Promise<void> => {
     const next = !immersive
     setImmersive(next)
@@ -233,7 +313,7 @@ export function GalgamePlayerPage() {
         fullscreenRef.current = false
       }
     } catch {
-      /* 忽略窗口状态读取失败 */
+      /* ignore */
     }
   }
 
@@ -248,7 +328,6 @@ export function GalgamePlayerPage() {
     setImmersive(false)
   }
 
-  // 快捷键：F / F11 切换全屏，Esc 退出沉浸，空格推进
   useEffect(() => {
     const handler = (event: KeyboardEvent): void => {
       const target = event.target as HTMLElement | null
@@ -273,7 +352,6 @@ export function GalgamePlayerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [immersive, editing, revealed, index, script])
 
-  // 离开页面时恢复窗口状态
   useEffect(
     () => () => {
       if (fullscreenRef.current) void api.app.window('toggle-fullscreen')
@@ -313,105 +391,39 @@ export function GalgamePlayerPage() {
     )
   }
 
-  return (
-    <Stack spacing={1.25} sx={{ height: '100%', minHeight: 0 }}>
-      {/* 顶部信息条 */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: 1,
-          borderRadius: 1.5,
-          border: '1px solid',
-          borderColor: 'divider',
-          bgcolor: immersive ? alpha(theme.palette.background.paper, 0.65) : 'background.paper'
-        }}
-      >
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-          <Typography variant="subtitle2" fontWeight={700} sx={{ flexGrow: 1, minWidth: 140 }} noWrap>
-            {script.title}
-          </Typography>
-          <Chip size="small" label={`第 ${(currentScene?.index ?? 0) + 1} 幕 / 共 ${scenes.length} 幕`} />
-          <Chip size="small" variant="outlined" label={`${index + 1} / ${script.lines.length}`} />
-          <Tooltip title={autoSpeak ? '关闭自动朗读' : '开启自动朗读'}>
-            <Chip
-              size="small"
-              icon={autoSpeak ? <VolumeUpRoundedIcon sx={{ fontSize: 15 }} /> : <VolumeOffRoundedIcon sx={{ fontSize: 15 }} />}
-              label="自动朗读"
-              color={autoSpeak ? 'primary' : 'default'}
-              variant={autoSpeak ? 'filled' : 'outlined'}
-              clickable
-              onClick={() => setAutoSpeak((value) => !value)}
-            />
-          </Tooltip>
-          <Tooltip title="场景列表">
-            <IconButton size="small" onClick={() => setSceneOpen(true)}>
-              <MovieFilterRoundedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="对话记录">
-            <IconButton size="small" onClick={() => setLogOpen(true)}>
-              <HistoryRoundedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="把当前台词加入黑板笔记">
-            <IconButton size="small" onClick={() => void quoteToNotes()}>
-              <StickyNote2RoundedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="导出存档">
-            <IconButton
-              size="small"
-              onClick={async () => {
-                try {
-                  await api.gal.exportSave(script.id, useAppStore.getState().settings?.sync.mountId ?? null)
-                  toast('success', '存档已导出')
-                } catch (error) {
-                  toast('error', `导出失败：${(error as Error).message}`)
-                }
-              }}
-            >
-              <SaveRoundedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="更换场景背景">
-            <IconButton size="small" onClick={() => setBackgroundOpen(true)}>
-              <WallpaperRoundedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={immersive ? '退出全屏（Esc）' : '全屏游玩（F）'}>
-            <IconButton size="small" color={immersive ? 'primary' : 'default'} onClick={() => void toggleFullscreen()}>
-              {immersive ? <FullscreenExitRoundedIcon fontSize="small" /> : <FullscreenRoundedIcon fontSize="small" />}
-            </IconButton>
-          </Tooltip>
-        </Stack>
-        <LinearProgress variant="determinate" value={((index + 1) / script.lines.length) * 100} sx={{ mt: 1, borderRadius: 999 }} />
-      </Paper>
+  const iconSx = { color: '#fff' } as const
 
-      {/* 场景 + 对话框：弹性布局，立绘永不被对话框遮挡 */}
+  return (
+    <Stack spacing={0} sx={{ height: '100%', minHeight: 0 }}>
+      {/* 非沉浸模式：顶部信息条 */}
+      {!immersive ? (
+        <Paper elevation={0} sx={{ p: 1, mb: 1.25, borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography variant="subtitle2" fontWeight={700} sx={{ flexGrow: 1, minWidth: 140 }} noWrap>
+              {script.title}
+            </Typography>
+            <Chip size="small" label={`第 ${(currentScene?.index ?? 0) + 1} 幕 / 共 ${scenes.length} 幕`} />
+            <Chip size="small" variant="outlined" label={`${index + 1} / ${script.lines.length}`} />
+          </Stack>
+          <LinearProgress variant="determinate" value={((index + 1) / script.lines.length) * 100} sx={{ mt: 1, borderRadius: 999 }} />
+        </Paper>
+      ) : null}
+
+      {/* 场景 */}
       <Paper
         elevation={0}
         sx={{
           flexGrow: 1,
           minHeight: 0,
-          display: 'flex',
-          flexDirection: 'column',
+          position: 'relative',
           overflow: 'hidden',
-          borderRadius: 2,
-          border: '1px solid',
-          borderColor: 'divider'
+          borderRadius: immersive ? 0 : 2,
+          border: immersive ? 'none' : '1px solid',
+          borderColor: 'divider',
+          backgroundColor: 'var(--sig-surface-variant)'
         }}
       >
-        <Box
-          ref={stageRef}
-          sx={{
-            flexGrow: 1,
-            minHeight: 0,
-            position: 'relative',
-            overflow: 'hidden',
-            backgroundColor: 'var(--sig-surface-variant)'
-          }}
-        >
-          {/* 场景背景：内置开源背景或用户导入的背景 */}
+        <Box ref={stageRef} onClick={advance} sx={{ position: 'absolute', inset: 0, cursor: 'pointer' }}>
           {background ? (
             <Box
               component="img"
@@ -424,177 +436,268 @@ export function GalgamePlayerPage() {
               sx={{
                 position: 'absolute',
                 inset: 0,
-                background: `radial-gradient(120% 90% at 78% 6%, ${alpha(theme.palette.primary.main, 0.26)} 0%, transparent 58%),
-                  linear-gradient(170deg, var(--sig-surface-variant) 0%, transparent 70%)`
+                background: `radial-gradient(120% 90% at 78% 6%, ${alpha(theme.palette.primary.main, 0.26)} 0%, transparent 58%), linear-gradient(170deg, var(--sig-surface-variant) 0%, transparent 70%)`
               }}
             />
           )}
-          {/* 顶部与底部压暗，保证台词可读 */}
           <Box
             sx={{
               position: 'absolute',
               inset: 0,
               background:
-                'linear-gradient(180deg, rgba(10,6,16,0.28) 0%, rgba(10,6,16,0) 26%, rgba(10,6,16,0) 62%, rgba(10,6,16,0.32) 100%)',
+                'linear-gradient(180deg, rgba(10,6,16,0.3) 0%, rgba(10,6,16,0) 24%, rgba(10,6,16,0) 58%, rgba(10,6,16,0.36) 100%)',
               pointerEvents: 'none'
             }}
           />
-          {/* 立绘：高度 100% + contain，随窗口自适应且完整可见 */}
+
+          {/* 立绘：完整可见、随窗口自适应（无浮动动画） */}
           {live2dEnabled && character?.live2d?.modelPath ? (
-            <Box sx={{ position: 'absolute', inset: 0 }}>
+            <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
               <Live2DStage character={character} height={stageHeight} bare />
             </Box>
           ) : sprite ? (
             <Box
               component="img"
-              className="sig-breathe"
               src={toAssetUrl(sprite)}
               alt={character?.name ?? ''}
               sx={{
                 position: 'absolute',
                 left: '50%',
-                bottom: 0,
+                bottom: 96,
                 transform: 'translateX(-50%)',
-                height: '100%',
-                maxWidth: '88%',
+                height: `calc(100% - 96px)`,
+                maxWidth: '86%',
                 objectFit: 'contain',
                 objectPosition: 'bottom center',
-                filter: 'drop-shadow(0 18px 30px rgba(0,0,0,0.18))'
+                filter: 'drop-shadow(0 18px 30px rgba(0,0,0,0.32))',
+                pointerEvents: 'none'
               }}
             />
           ) : (
-            <Stack alignItems="center" justifyContent="flex-end" sx={{ position: 'absolute', inset: 0, pb: 2 }}>
-              <Typography className="sig-breathe" sx={{ fontSize: Math.min(150, stageHeight * 0.42), lineHeight: 1 }}>
-                {character?.avatar ?? '🌸'}
+            <Stack alignItems="center" justifyContent="flex-end" sx={{ position: 'absolute', inset: 0, pb: 12, pointerEvents: 'none' }}>
+              <Typography sx={{ fontSize: Math.min(150, stageHeight * 0.4), lineHeight: 1 }}>{character?.avatar ?? '🌸'}</Typography>
+              <Typography variant="subtitle1" sx={{ color: '#fff' }}>
+                {character?.name}
               </Typography>
-              <Typography variant="subtitle1">{character?.name}</Typography>
             </Stack>
           )}
 
+          {/* 左上：当前幕 */}
           {currentScene ? (
-            <Chip
-              size="small"
-              label={currentScene.title}
-              sx={{ position: 'absolute', top: 12, left: 12, bgcolor: alpha(theme.palette.background.paper, 0.8), backdropFilter: 'blur(8px)' }}
-            />
+            <Chip size="small" label={currentScene.title} sx={{ position: 'absolute', top: 12, left: 12, zIndex: 3, ...GLASS_CONTROL, borderRadius: 1.5, px: 0.5 }} />
           ) : null}
-        </Box>
 
-        {/* 对话框 */}
-        <Box
-          sx={{
-            flexShrink: 0,
-            p: { xs: 1.5, md: 2 },
-            borderTop: '1px solid',
-            borderColor: 'divider',
-            bgcolor: alpha(theme.palette.background.paper, 0.92),
-            backdropFilter: 'blur(6px)'
-          }}
-        >
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}>
-            <Chip
-              size="small"
-              label={`${EMOTION_EMOJI[line?.emotion ?? 'neutral'] ?? ''} ${
-                line?.speaker === 'character' ? character?.name ?? '角色' : line?.speaker === 'user' ? '我' : '旁白'
-              }`}
-              color={line?.speaker === 'user' ? 'secondary' : 'primary'}
-            />
-            <Box sx={{ flexGrow: 1 }} />
-            <Tooltip title="朗读这句">
+          {/* 右上：悬浮操作簇 */}
+          <Stack
+            direction="row"
+            spacing={0.25}
+            alignItems="center"
+            onClick={(event) => event.stopPropagation()}
+            sx={{ position: 'absolute', top: 12, right: 12, zIndex: 4, ...GLASS_CONTROL }}
+          >
+            <Tooltip title="随堂问答">
               <IconButton
                 size="small"
+                sx={iconSx}
                 onClick={() => {
-                  if (line) speakLine(line.text)
+                  const pending = quizQuestions.filter((item) => !askedQuestions.current.has(item.id))
+                  openQuizWith(
+                    (pending.length > 0 ? pending : quizQuestions).slice(0, Math.max(perScene, 3)),
+                    `${script.title} · 随堂问答`
+                  )
                 }}
               >
-                <VolumeUpRoundedIcon fontSize="small" />
+                <QuizRoundedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="编辑这句台词">
+            <Tooltip title="更换场景背景">
+              <IconButton size="small" sx={iconSx} onClick={() => setBackgroundOpen(true)}>
+                <WallpaperRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="场景列表">
+              <IconButton size="small" sx={iconSx} onClick={() => setSceneOpen(true)}>
+                <MovieFilterRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="对话记录">
+              <IconButton size="small" sx={iconSx} onClick={() => setLogOpen(true)}>
+                <HistoryRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="把这句加入黑板笔记">
+              <IconButton size="small" sx={iconSx} onClick={() => void quoteToNotes()}>
+                <StickyNote2RoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="导出存档">
               <IconButton
                 size="small"
-                onClick={() => {
-                  setDraft(line?.text ?? '')
-                  setEditing(true)
+                sx={iconSx}
+                onClick={async () => {
+                  try {
+                    await api.gal.exportSave(script.id, useAppStore.getState().settings?.sync.mountId ?? null)
+                    toast('success', '存档已导出')
+                  } catch (error) {
+                    toast('error', `导出失败：${(error as Error).message}`)
+                  }
                 }}
               >
-                <EditRoundedIcon fontSize="small" />
+                <SaveRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={autoSpeak ? '关闭自动朗读' : '开启自动朗读'}>
+              <IconButton size="small" sx={iconSx} onClick={() => setAutoSpeak((value) => !value)}>
+                {autoSpeak ? <VolumeUpRoundedIcon fontSize="small" /> : <VolumeOffRoundedIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+            <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.25)', mx: 0.25 }} />
+            <Tooltip title={immersive ? '退出全屏（Esc）' : '全屏游玩（F）'}>
+              <IconButton size="small" sx={iconSx} onClick={() => void toggleFullscreen()}>
+                {immersive ? <FullscreenExitRoundedIcon fontSize="small" /> : <FullscreenRoundedIcon fontSize="small" />}
               </IconButton>
             </Tooltip>
           </Stack>
 
-          {editing ? (
-            <Stack spacing={1}>
-              <TextField
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                multiline
-                minRows={2}
-                maxRows={6}
-                fullWidth
-                autoFocus
-              />
-              <Stack direction="row" spacing={1}>
-                <Button size="small" variant="contained" startIcon={<CheckRoundedIcon />} onClick={() => void saveLineEdit()}>
-                  保存
-                </Button>
-                <Button size="small" color="inherit" startIcon={<CloseRoundedIcon />} onClick={() => setEditing(false)}>
-                  取消
-                </Button>
-              </Stack>
-            </Stack>
-          ) : (
-            <Typography
-              variant="body1"
-              onClick={advance}
-              className={revealed < (line?.text.length ?? 0) ? 'sig-caret' : undefined}
+          {/* 对话岛：悬浮、居中、点击推进 */}
+          <Box
+            onClick={(event) => {
+              event.stopPropagation()
+              if (!editing) advance()
+            }}
+            sx={{
+              position: 'absolute',
+              left: '50%',
+              bottom: 18,
+              transform: 'translateX(-50%)',
+              width: 'min(94%, 940px)',
+              zIndex: 3
+            }}
+          >
+            <Paper
+              elevation={12}
               sx={{
-                minHeight: 62,
-                maxHeight: immersive ? '26vh' : '22vh',
-                overflowY: 'auto',
-                fontSize: { xs: 16, md: 17 },
-                lineHeight: 1.85,
-                cursor: 'pointer'
+                p: { xs: 1.75, md: 2.25 },
+                borderRadius: 4,
+                bgcolor: 'rgba(16,10,22,0.8)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                color: '#fff',
+                cursor: editing ? 'default' : 'pointer'
               }}
             >
-              {line?.text.slice(0, revealed) ?? ''}
-            </Typography>
-          )}
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}>
+                <Chip
+                  size="small"
+                  color={line?.speaker === 'user' ? 'secondary' : 'primary'}
+                  label={`${EMOTION_EMOJI[line?.emotion ?? 'neutral'] ?? ''} ${
+                    line?.speaker === 'character' ? character?.name ?? '角色' : line?.speaker === 'user' ? '我' : '旁白'
+                  }`}
+                />
+                <Box sx={{ flexGrow: 1 }} />
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.55)' }}>
+                  {compact ? '' : '点击此处或场景推进 · 空格'}
+                </Typography>
+                <Tooltip title="朗读这句">
+                  <IconButton
+                    size="small"
+                    sx={iconSx}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      if (line) speakLine(line.text)
+                    }}
+                  >
+                    <VolumeUpRoundedIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="编辑这句台词">
+                  <IconButton
+                    size="small"
+                    sx={iconSx}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      setDraft(line?.text ?? '')
+                      setEditing(true)
+                    }}
+                  >
+                    <EditRoundedIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+
+              {editing ? (
+                <Stack spacing={1} onClick={(event) => event.stopPropagation()}>
+                  <TextField
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    multiline
+                    minRows={2}
+                    maxRows={6}
+                    fullWidth
+                    autoFocus
+                    InputProps={{ sx: { color: '#1c1220', bgcolor: 'rgba(255,255,255,0.94)', borderRadius: 2 } }}
+                  />
+                  <Stack direction="row" spacing={1}>
+                    <Button size="small" variant="contained" startIcon={<CheckRoundedIcon />} onClick={() => void saveLineEdit()}>
+                      保存
+                    </Button>
+                    <Button size="small" color="inherit" startIcon={<CloseRoundedIcon />} sx={iconSx} onClick={() => setEditing(false)}>
+                      取消
+                    </Button>
+                  </Stack>
+                </Stack>
+              ) : (
+                <Typography
+                  variant="body1"
+                  className={revealed < (line?.text.length ?? 0) ? 'sig-caret' : undefined}
+                  sx={{ minHeight: 56, maxHeight: immersive ? '24vh' : '20vh', overflowY: 'auto', fontSize: { xs: 16, md: 17.5 }, lineHeight: 1.85 }}
+                >
+                  {line?.text.slice(0, revealed) ?? ''}
+                </Typography>
+              )}
+            </Paper>
+          </Box>
         </Box>
       </Paper>
 
-      {/* 控制条 */}
-      <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" flexWrap="wrap" useFlexGap>
-        <IconButton disabled={index === 0} onClick={() => setIndex(Math.max(0, index - 1))}>
-          <SkipPreviousRoundedIcon />
-        </IconButton>
-        <Button
-          variant={auto ? 'contained' : 'outlined'}
-          startIcon={auto ? <PauseRoundedIcon /> : <PlayArrowRoundedIcon />}
-          onClick={() => setAuto((value) => !value)}
-        >
-          {auto ? '自动播放中' : '自动播放'}
-        </Button>
-        <Button variant="contained" endIcon={<SkipNextRoundedIcon />} onClick={advance}>
-          下一句
-        </Button>
-        {currentScene && currentScene.index < scenes.length - 1 ? (
-          <Button variant="text" onClick={() => setIndex(currentScene.end + 1)}>
-            跳到下一幕
+      {/* 非沉浸模式：底部控制条 */}
+      {!immersive ? (
+        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
+          <IconButton disabled={index === 0} onClick={() => setIndex(Math.max(0, index - 1))}>
+            <SkipPreviousRoundedIcon />
+          </IconButton>
+          <Button
+            variant={auto ? 'contained' : 'outlined'}
+            startIcon={auto ? <PauseRoundedIcon /> : <PlayArrowRoundedIcon />}
+            onClick={() => setAuto((value) => !value)}
+          >
+            {auto ? '自动播放中' : '自动播放'}
           </Button>
-        ) : null}
-        {!compact ? (
-          <Typography variant="caption" color="text.disabled">
-            空格 / 点击正文推进 · F 全屏 · Esc 退出
-          </Typography>
-        ) : null}
-      </Stack>
-
-      {save && save.progress > 0 && !immersive ? (
-        <Alert severity="info" icon={false}>
-          已自动保存进度：第 {save.linesRead + 1} 行 / 共 {save.totalLines} 行（{Math.round(save.progress * 100)}%）
-        </Alert>
+          <Button variant="contained" endIcon={<SkipNextRoundedIcon />} onClick={advance}>
+            下一句
+          </Button>
+          {currentScene && currentScene.index < scenes.length - 1 ? (
+            <Button variant="text" onClick={() => setIndex(currentScene.end + 1)}>
+              跳到下一幕
+            </Button>
+          ) : null}
+          {save && save.progress > 0 ? (
+            <Typography variant="caption" color="text.disabled">
+              进度 {Math.round(save.progress * 100)}%
+            </Typography>
+          ) : null}
+        </Stack>
       ) : null}
+
+      <QuizDialog
+        open={quiz.open}
+        onClose={() => setQuiz((current) => ({ ...current, open: false }))}
+        sourceId={script.sourceId}
+        scriptId={script.id}
+        title={quiz.title}
+        questions={quiz.questions.length > 0 ? quiz.questions : undefined}
+        regenerate={regenerateQuestions}
+      />
 
       <Dialog open={logOpen} onClose={() => setLogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>对话记录</DialogTitle>
@@ -612,7 +715,8 @@ export function GalgamePlayerPage() {
         </DialogContent>
       </Dialog>
 
-      <Drawer anchor="right" open={sceneOpen} onClose={() => setSceneOpen(false)}>        <Box sx={{ width: 320, p: 2 }}>
+      <Drawer anchor="right" open={sceneOpen} onClose={() => setSceneOpen(false)}>
+        <Box sx={{ width: 320, p: 2 }}>
           <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
             场景列表
           </Typography>
@@ -640,7 +744,6 @@ export function GalgamePlayerPage() {
         </Box>
       </Drawer>
 
-      {/* 背景选择 */}
       <Drawer anchor="right" open={backgroundOpen} onClose={() => setBackgroundOpen(false)}>
         <Box sx={{ width: 360, p: 2 }}>
           <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>
@@ -673,12 +776,7 @@ export function GalgamePlayerPage() {
                     borderColor: scene.id === background?.id ? 'primary.main' : 'divider'
                   }}
                 >
-                  <Box
-                    component="img"
-                    src={scene.url}
-                    alt={scene.name}
-                    sx={{ width: '100%', height: 84, objectFit: 'cover', display: 'block' }}
-                  />
+                  <Box component="img" src={scene.url} alt={scene.name} sx={{ width: '100%', height: 84, objectFit: 'cover', display: 'block' }} />
                   <Typography variant="caption" sx={{ display: 'block', px: 0.75, py: 0.5 }} noWrap>
                     {scene.custom ? '📁 ' : ''}
                     {scene.name}
@@ -693,7 +791,7 @@ export function GalgamePlayerPage() {
             sx={{ mt: 2 }}
             onClick={() => {
               setBackgroundOpen(false)
-              setImmersive(false)
+              void exitImmersive()
               navigate('/')
             }}
           >

@@ -38,6 +38,7 @@ export function saveScript(input: Partial<GalScript> & { id?: string }): GalScri
     characterId: input.characterId ?? '',
     sceneId: input.sceneId ?? null,
     lines: input.lines ?? [],
+    questions: input.questions ?? [],
     providerId: input.providerId ?? null,
     model: input.model ?? null,
     createdAt: now,
@@ -57,12 +58,20 @@ function line(speaker: DialogueSpeaker, text: string, emotion = 'neutral'): Dial
   return { id: newId('line'), speaker, text, emotion }
 }
 
+interface ExampleQuestion {
+  question: string
+  options: string[]
+  answerIndex: number
+  explanation: string
+}
+
 interface ExampleSeed {
   slug: string
   title: string
   sourceKind: 'paper' | 'textbook'
   model: string
   lines: DialogueLine[]
+  questions: ExampleQuestion[]
 }
 
 function buildExamples(): ExampleSeed[] {
@@ -89,6 +98,26 @@ function buildExamples(): ExampleSeed[] {
         line('character', '所以记住三件事：方向看梯度，步长看学习率，噪声不一定是坏事。', 'happy'),
         line('user', '那动量、Adam 又是什么？'),
         line('character', '那是「带上惯性下山」和「给每个方向配不同步长」，下次再讲。今天先到这里～', 'excited')
+      ],
+      questions: [
+        {
+          question: '梯度本身指向哪个方向？',
+          options: ['函数值增长最快的方向', '函数值下降最快的方向', '随机方向', '参数最多的方向'],
+          answerIndex: 0,
+          explanation: '梯度是最陡上坡方向，所以要用负梯度才能下降。'
+        },
+        {
+          question: '学习率 η 设得过大，最可能出现什么？',
+          options: ['收敛变慢', '直接跨过最优点甚至发散', '梯度消失', '显存占用增加'],
+          answerIndex: 1,
+          explanation: '步长太大会跨过山谷，损失不降反升。'
+        },
+        {
+          question: '为什么随机梯度的噪声有时反而有帮助？',
+          options: ['让损失函数更平滑', '有助于跳出质量较差的局部解', '降低对精度的要求', '可以省掉学习率'],
+          answerIndex: 1,
+          explanation: '噪声提供了逃出糟糕局部解的扰动。'
+        }
       ]
     },
     {
@@ -112,6 +141,26 @@ function buildExamples(): ExampleSeed[] {
         line('character', '不过要注意：时域和频域不能同时无限精确，这就是测不准原理在信号里的版本。', 'serious'),
         line('narration', '（夜色爬上窗台，灯下的公式安静地亮着）'),
         line('character', '先记住一句话：变换只是换一双眼睛看同一件事。', 'happy')
+      ],
+      questions: [
+        {
+          question: '傅里叶变换回答的核心问题是？',
+          options: ['信号持续了多久', '信号由哪些频率组成、各自强度如何', '信号的最大幅值', '信号的采样率'],
+          answerIndex: 1,
+          explanation: '它做的是把信号分解到频率维度上。'
+        },
+        {
+          question: '方波可以用什么叠加逼近？',
+          options: ['只有基频正弦', '频率为整数倍、幅度递减的正弦叠加', '单一余弦', '随机噪声'],
+          answerIndex: 1,
+          explanation: '方波 = 基频 + 3 次 + 5 次……按 1、1/3、1/5 的幅度叠加。'
+        },
+        {
+          question: '「时域与频域不能同时无限精确」类似于什么原理？',
+          options: ['能量守恒', '测不准原理', '熵增原理', '叠加原理'],
+          answerIndex: 1,
+          explanation: '这是不确定性原理在信号处理中的体现。'
+        }
       ]
     },
     {
@@ -136,6 +185,26 @@ function buildExamples(): ExampleSeed[] {
         line('character', '就只能靠糖酵解，并走发酵路线，产量一下子掉到 2 个 ATP —— 这就是剧烈运动时会酸胀的原因。', 'serious'),
         line('narration', '（下课铃响，她合上讲义）'),
         line('character', '复习口诀：拆糖 → 转圈 → 用氧。今天的三幕记住了吗？', 'happy')
+      ],
+      questions: [
+        {
+          question: '糖酵解发生在哪里、净产出多少 ATP？',
+          options: ['线粒体基质，2 ATP', '细胞质，2 ATP', '线粒体内膜，30 ATP', '细胞核，4 ATP'],
+          answerIndex: 1,
+          explanation: '糖酵解在细胞质中把葡萄糖拆成 2 分子丙酮酸，净得 2 ATP。'
+        },
+        {
+          question: '柠檬酸循环主要为后续阶段提供什么？',
+          options: ['大量 ATP', 'NADH 与 FADH₂', '氧气', '葡萄糖'],
+          answerIndex: 1,
+          explanation: '真正值钱的是电子载体，它们会在第三阶段换 ATP。'
+        },
+        {
+          question: '缺氧时为什么容易酸胀？',
+          options: ['只能靠糖酵解并走发酵路线', '线粒体完全停止工作', 'ATP 产量翻倍', '氧气被储存起来'],
+          answerIndex: 0,
+          explanation: '缺氧时只能靠糖酵解 + 发酵，产量骤降并积累乳酸。'
+        }
       ]
     }
   ]
@@ -154,14 +223,26 @@ export function seedExampleScripts(force = false): { added: number; total: numbe
 
   for (const example of buildExamples()) {
     if (!force && existingTitles.has(example.title)) continue
+    const scriptId = newId('script')
     added.push({
-      id: newId('script'),
+      id: scriptId,
       sourceId: EXAMPLE_SOURCE_ID,
       sourceKind: example.sourceKind,
       title: example.title,
       characterId: EXAMPLE_CHARACTER_ID,
       sceneId: null,
       lines: example.lines,
+      questions: example.questions.map((item, offset) => ({
+        id: newId('quiz'),
+        index: offset,
+        question: item.question,
+        options: item.options,
+        answerIndex: item.answerIndex,
+        explanation: item.explanation,
+        sourceId: EXAMPLE_SOURCE_ID,
+        scriptId,
+        createdAt: now
+      })),
       providerId: null,
       model: example.model,
       createdAt: now,

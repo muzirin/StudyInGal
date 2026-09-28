@@ -148,6 +148,13 @@ export const CHANNELS = {
     addFocus: 'stats:addFocus',
     focusSummary: 'stats:focusSummary'
   },
+  quiz: {
+    generate: 'quiz:generate',
+    generateForScript: 'quiz:generateForScript',
+    evaluate: 'quiz:evaluate',
+    list: 'quiz:list',
+    stats: 'quiz:stats'
+  },
   assets: {
     list: 'assets:list'
   },

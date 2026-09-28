@@ -157,6 +157,13 @@ export const api: StudyApi = {
   assets: {
     list: () => invoke(CHANNELS.assets.list)
   },
+  quiz: {
+    generate: (input) => invoke(CHANNELS.quiz.generate, input),
+    evaluate: (input) => invoke(CHANNELS.quiz.evaluate, input),
+    generateForScript: (scriptId, count) => invoke(CHANNELS.quiz.generateForScript, { scriptId, count }),
+    list: (filter) => invoke(CHANNELS.quiz.list, filter ?? {}),
+    stats: (filter) => invoke(CHANNELS.quiz.stats, filter ?? {})
+  },
   events: {
     subscribe: (listener) => window.study.on(listener as (event: unknown) => void)
   }

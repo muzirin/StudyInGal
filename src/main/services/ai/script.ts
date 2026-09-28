@@ -1,8 +1,8 @@
 import { newId } from '../../lib/util'
 import { parseDialogueJson } from '../../lib/jsonLines'
+import { parseQuizQuestions } from '../../lib/quizParse'
 import {
   SAFE_FALLBACK_TOKENS,
-  estimateScriptTokens,
   isMaxTokenError,
   parseAllowedMaxTokens,
   tokenCandidates
@@ -13,7 +13,7 @@ import { mergeNode, readDocument } from '../documents'
 import { listCharacters } from '../characters'
 import { saveScript } from '../scripts'
 import { chat, resolveProvider } from './client'
-import type { ChatRequest, ChatResponse, DialogueLine, GalGenerateOptions, GalScript } from '@shared/types'
+import type { ChatRequest, ChatResponse, DialogueLine, GalGenerateOptions, GalScript, QuizQuestion } from '@shared/types'
 
 const EMOTIONS = ['neutral', 'happy', 'thinking', 'surprised', 'serious', 'shy', 'excited', 'sad', 'angry']
 
@@ -23,17 +23,17 @@ const DEPTH_BUDGET: Record<GalGenerateOptions['depth'], { chars: number; instruc
   deep: { chars: 40000, instruction: '逐节深入讲解，包含方法细节、公式直觉、实验设计权衡与可能的局限。' }
 }
 
-/**
- * 剧本输出所需的 max_tokens 预算。
- * 中文对话 + JSON 结构大约每行 100~150 tokens，这里按 150 估算并留出固定开销。
- * 各家的上限差异很大（DeepSeek 8192、部分网关 393216），所以这里只给一个保守的期望值，
- * 真正的上限由「被拒绝时按错误信息回退」来处理。
- */
 const HARD_CAP = 16384
 const SAFE_FALLBACK = SAFE_FALLBACK_TOKENS
-const estimateTokens = estimateScriptTokens
 
-/** 依次尝试一组 token 预算，直到成功；都是 max_tokens 类错误时抛最后一个。 */
+/** 一次调用同时产出剧本与题目，所以预算要同时覆盖两者。 */
+const estimateTokens = (maxLines: number, questionCount: number): number =>
+  Math.min(HARD_CAP, 1100 + Math.floor(maxLines) * 150 + Math.floor(questionCount) * 260)
+
+/** 题目数量：按行数自适应（每 6 行 1 题，3~10 题）。 */
+const questionCountFor = (maxLines: number, explicit?: number): number =>
+  explicit && explicit > 0 ? Math.min(explicit, 12) : Math.max(3, Math.min(10, Math.round(maxLines / 6)))
+
 async function chatWithTokenLadder(
   request: Omit<ChatRequest, 'maxTokens'>,
   candidates: number[]
@@ -64,24 +64,28 @@ export async function generateScript(options: GalGenerateOptions): Promise<GalSc
   const content =
     found.node.format === 'folder' ? (await mergeNode(found.node)).markdown : (await readDocument(found.node)).text
   const excerpt = content.slice(0, budget.chars)
+  const questionCount = questionCountFor(options.maxLines, options.questionCount)
 
   const system = [
     character.systemPrompt,
     `人物设定：${character.personality}`,
     `说话风格：${character.speakingStyle}`,
-    '现在你要把用户提供的论文/教材内容改写为一段用于学习的 Galgame 对话剧本。'
+    '现在你要把用户提供的论文/教材内容改写为一段用于学习的 Galgame 对话剧本，并同时出一组随堂单选题。'
   ].join('\n')
 
   const user = [
     `源文献标题：${found.node.title}`,
     `语言：${options.language === 'zh' ? '中文' : 'English'}`,
     `讲解深度指令：${budget.instruction}`,
-    `输出上限：${options.maxLines} 行对话。`,
+    `剧本：最多 ${options.maxLines} 行对话。`,
     options.focus ? `重点聚焦：${options.focus}` : '',
-    '要求：角色是你（speaker=character），用户是「我」（speaker=user），旁白用 narration。',
+    '剧本要求：角色是你（speaker=character），用户是「我」（speaker=user），旁白用 narration。',
     `emotion 只能取以下之一：${EMOTIONS.join(', ')}。`,
-    '每行台词尽量控制在 60 字以内，保持简洁，不要输出任何解释性文字。',
-    '只输出 JSON，结构为：{"lines":[{"speaker":"character","text":"...","emotion":"neutral"}]}',
+    '每行台词尽量控制在 60 字以内，保持简洁。',
+    `题目：${questionCount} 道单选题，考察对上述内容的「理解」。`,
+    '题目要求：每题 4 个选项，只有一个正确；选项要合理，不要出现「以上都对」「都不是」这类选项；不要照抄原文句子。',
+    '只输出 JSON，不要任何解释文字，结构为：',
+    '{"lines":[{"speaker":"character","text":"...","emotion":"neutral"}],"questions":[{"question":"题干","options":["A","B","C","D"],"answerIndex":0,"explanation":"为什么选它、其他选项错在哪"}]}',
     '--- 文献内容开始 ---',
     excerpt,
     '--- 文献内容结束 ---'
@@ -89,18 +93,16 @@ export async function generateScript(options: GalGenerateOptions): Promise<GalSc
     .filter(Boolean)
     .join('\n')
 
-  const messages = [
-    { role: 'system' as const, content: system },
-    { role: 'user' as const, content: user }
-  ]
-
   const request: Omit<ChatRequest, 'maxTokens'> = {
     providerId: provider.id,
     capability: 'script',
     json: true,
-    messages
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: user }
+    ]
   }
-  const target = estimateTokens(options.maxLines)
+  const target = estimateTokens(options.maxLines, questionCount)
   const providerMax = Number.isFinite(provider.maxTokens) && provider.maxTokens > 0 ? provider.maxTokens : SAFE_FALLBACK
 
   let response: ChatResponse
@@ -109,28 +111,42 @@ export async function generateScript(options: GalGenerateOptions): Promise<GalSc
   } catch (error) {
     const message = (error as Error).message
     if (!isMaxTokenError(message)) throw error
-    // 按网关给出的上限回退，其次依次尝试更保守的值
     response = await chatWithTokenLadder(
       request,
       tokenCandidates(parseAllowedMaxTokens(message) ?? Math.min(providerMax, SAFE_FALLBACK), [SAFE_FALLBACK, 4096, 2048])
     )
   }
 
-  const parsed = parseDialogueJson(response.content, EMOTIONS)
-  if (parsed.lines.length === 0) {
+  const parsedLines = parseDialogueJson(response.content, EMOTIONS)
+  if (parsedLines.lines.length === 0) {
     throw new Error(
       '模型没有返回可解析的 JSON 剧本。可尝试：换用能力更强的模型、降低「最大对话行数」、或在提供商设置里调大 Max tokens。'
     )
   }
 
   const hitLengthLimit = response.finishReason === 'length' || /length/i.test(response.finishReason ?? '')
-  const truncated = parsed.truncated || hitLengthLimit
+  const truncated = parsedLines.truncated || hitLengthLimit
 
-  const lines: DialogueLine[] = parsed.lines.slice(0, options.maxLines).map((line) => ({
+  const lines: DialogueLine[] = parsedLines.lines.slice(0, options.maxLines).map((line) => ({
     id: newId('line'),
     speaker: line.speaker as DialogueLine['speaker'],
     text: line.text,
     emotion: line.emotion
+  }))
+
+  // 题目与剧本同批产出，直接存进剧本（之后读取无需再调用模型）
+  const scriptId = newId('script')
+  const parsedQuestions = parseQuizQuestions(response.content)
+  const questions: QuizQuestion[] = parsedQuestions.questions.map((item, offset) => ({
+    id: newId('quiz'),
+    index: offset,
+    question: item.question,
+    options: item.options,
+    answerIndex: item.answerIndex,
+    explanation: item.explanation,
+    sourceId: found.node.id,
+    scriptId,
+    createdAt: Date.now()
   }))
 
   if (truncated) {
@@ -138,17 +154,24 @@ export async function generateScript(options: GalGenerateOptions): Promise<GalSc
       type: 'toast',
       payload: {
         severity: 'warning',
-        message: `模型输出被 max tokens 截断，已保留前 ${lines.length} 行。可减少「最大对话行数」或在提供商设置里调大 Max tokens。`
+        message: `模型输出被 max tokens 截断，已保留 ${lines.length} 行剧本、${questions.length} 道题。可减少「最大对话行数」或调大 Max tokens。`
       }
+    })
+  } else if (questions.length === 0) {
+    emitEvent({
+      type: 'toast',
+      payload: { severity: 'info', message: '这次没有生成到题目，可在 Gal 工坊点「重新出题」补上。' }
     })
   }
 
   return saveScript({
+    id: scriptId,
     sourceId: found.node.id,
     sourceKind: found.kind,
     title: `${found.node.title} · ${character.name}`,
     characterId: character.id,
     lines,
+    questions,
     providerId: provider.id,
     model: response.model
   })

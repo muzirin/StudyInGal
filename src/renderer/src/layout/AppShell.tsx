@@ -19,7 +19,6 @@ import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
 import ViewSidebarRoundedIcon from '@mui/icons-material/ViewSidebarRounded'
-import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRounded'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { TitleBar } from './TitleBar'
 import { NavPanel } from './NavPanel'
@@ -159,18 +158,15 @@ export function AppShell() {
   )
 
   if (immersive) {
+    // 沉浸模式：不显示任何应用外壳（标题栏 / 导航 / FAB），
+    // 由页面自己在右上角提供操作按钮与退出入口。
     return (
       <Box sx={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-        <Box sx={{ flexGrow: 1, minHeight: 0, position: 'relative', p: 2 }}>
+        <Box sx={{ flexGrow: 1, minHeight: 0, position: 'relative' }}>
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>
         </Box>
-        <Tooltip title="退出沉浸模式（Esc）">
-          <Fab size="small" color="default" onClick={() => setImmersive(false)} sx={{ position: 'fixed', top: 16, right: 16, zIndex: 1400 }}>
-            <CloseFullscreenRoundedIcon fontSize="small" />
-          </Fab>
-        </Tooltip>
         <CommandPalette />
       </Box>
     )

@@ -256,6 +256,8 @@ export interface GalScript {
   /** 该剧本使用的场景背景 id（来自内置背景或用户导入的背景） */
   sceneId: string | null
   lines: DialogueLine[]
+  /** 随剧本一起生成的单选题（读取时直接可用，无需再调用模型） */
+  questions: QuizQuestion[]
   providerId: string | null
   model: string | null
   createdAt: number
@@ -269,6 +271,8 @@ export interface GalGenerateOptions {
   language: 'zh' | 'en'
   maxLines: number
   focus?: string
+  /** 随剧本一起生成的单选题数量（默认按行数自动推算） */
+  questionCount?: number
 }
 
 /* --------------------------------- archive -------------------------------- */
@@ -514,6 +518,61 @@ export interface NoteEntry {
   updatedAt: number
 }
 
+/* ---------------------------------- 问答 ---------------------------------- */
+
+/**
+ * 题目一律为单选（EIPF 里对应 `decision` 条目：选项 + 正确项下标）。
+ * 结构对齐 EIPF 的 scene-entry 约定：
+ *   - 线性 `index`（对应 data-index）
+ *   - options 顺序即 `data-choice-index` 顺序
+ *   - 正确项与解析放进 `params`（对应 data-params）
+ */
+export interface QuizQuestion {
+  id: string
+  /** 线性序号，对应 EIPF 的 data-index */
+  index: number
+  question: string
+  options: string[]
+  /** 正确项下标（0 起） */
+  answerIndex: number
+  explanation: string
+  sourceId: string
+  scriptId: string | null
+  createdAt: number
+}
+
+/** EIPF 对齐后的题目条目（data-type = decision） */
+export interface QuizEntryParams {
+  [key: string]: unknown
+  answerIndex: number
+  explanation: string
+}
+
+export interface QuizAttempt {
+  id: string
+  questionId: string
+  sourceId: string
+  scriptId: string | null
+  question: string
+  answer: string
+  correct: boolean
+  at: number
+}
+
+export interface QuizResult {
+  correct: boolean
+  score: number
+  feedback: string
+  explanation: string
+  reference: string
+}
+
+export interface QuizStats {
+  total: number
+  correct: number
+  accuracy: number
+}
+
 export interface ConversationMessage {
   id: string
   role: 'user' | 'assistant'
@@ -582,6 +641,12 @@ export interface AppSettings {
     sceneId: string
     autoScene: boolean
     customScenes: CustomScene[]
+  }
+  quiz: {
+    /** 每读完一幕自动出题 */
+    autoAtSceneEnd: boolean
+    /** 每组题目数量 */
+    count: number
   }
   live2d: {
     enabled: boolean

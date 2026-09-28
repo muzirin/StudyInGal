@@ -26,6 +26,7 @@ import * as notes from '../services/notes'
 import * as conversations from '../services/conversations'
 import * as focus from '../services/focus'
 import * as bundledAssets from '../services/bundledAssets'
+import * as quiz from '../services/quiz'
 import { refreshGlobalShortcut, refreshTray } from '../services/tray'
 import { broadcastWindowState } from '../window'
 
@@ -528,6 +529,21 @@ const handlers: Record<string, Handler> = {
 
   /* --------------------------------- assets --------------------------------- */
   [CHANNELS.assets.list]: () => bundledAssets.listBundledAssets(),
+
+  /* ---------------------------------- quiz ---------------------------------- */
+  [CHANNELS.quiz.generate]: (payload) => quiz.generateQuestions(payload as never),
+  [CHANNELS.quiz.generateForScript]: (payload) => quiz.generateForScript(asString(payload.scriptId), asNumber(payload.count, 6)),
+  [CHANNELS.quiz.evaluate]: (payload) => quiz.evaluateAnswer(payload as never),
+  [CHANNELS.quiz.list]: (payload) =>
+    quiz.listAttempts({
+      sourceId: payload.sourceId ? asString(payload.sourceId) : undefined,
+      scriptId: payload.scriptId ? asString(payload.scriptId) : undefined
+    }),
+  [CHANNELS.quiz.stats]: (payload) =>
+    quiz.stats({
+      sourceId: payload.sourceId ? asString(payload.sourceId) : undefined,
+      scriptId: payload.scriptId ? asString(payload.scriptId) : undefined
+    }),
 
   /* ---------------------------------- sync ---------------------------------- */
   [CHANNELS.sync.status]: () => ({

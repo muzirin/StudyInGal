@@ -488,12 +488,12 @@ export function HomePage() {
             component="img"
             src={toAssetUrl(sprite)}
             alt={companion?.name ?? ''}
-            className="sig-breathe"
+           
             sx={{ maxHeight: '100%', maxWidth: 420, filter: 'drop-shadow(0 20px 34px rgba(0,0,0,0.5))' }}
           />
         ) : (
           <Typography
-            className="sig-breathe"
+           
             sx={{ fontSize: { xs: 130, md: 190 }, lineHeight: 1, filter: 'drop-shadow(0 20px 34px rgba(0,0,0,0.5))' }}
           >
             {companion?.avatar ?? '🌸'}

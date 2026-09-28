@@ -24,6 +24,10 @@ import type {
   MergedDocument,
   NoteEntry,
   OcrResult,
+  QuizAttempt,
+  QuizQuestion,
+  QuizResult,
+  QuizStats,
   RunCodeRequest,
   RunCodeResult,
   RuntimeInfo,
@@ -220,6 +224,20 @@ export interface StudyApi {
   }
   assets: {
     list(): Promise<BundledAssets>
+  }
+  quiz: {
+    generate(input: {
+      sourceId?: string
+      scriptId?: string | null
+      contextText?: string
+      title?: string
+      characterId?: string | null
+      count?: number
+    }): Promise<{ questions: QuizQuestion[]; truncated: boolean }>
+    evaluate(input: { question: QuizQuestion; answer: string }): Promise<QuizResult>
+    generateForScript(scriptId: string, count?: number): Promise<{ questions: QuizQuestion[]; truncated: boolean }>
+    list(filter?: { sourceId?: string; scriptId?: string }): Promise<QuizAttempt[]>
+    stats(filter?: { sourceId?: string; scriptId?: string }): Promise<QuizStats>
   }
   events: {
     subscribe(listener: (event: import('./channels').StudyEvent) => void): () => void

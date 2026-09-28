@@ -28,6 +28,7 @@ import AutoStoriesRoundedIcon from '@mui/icons-material/AutoStoriesRounded'
 import FormatQuoteRoundedIcon from '@mui/icons-material/FormatQuoteRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import SchoolRoundedIcon from '@mui/icons-material/SchoolRounded'
+import QuizRoundedIcon from '@mui/icons-material/QuizRounded'
 import StickyNote2RoundedIcon from '@mui/icons-material/StickyNote2Rounded'
 import ListAltRoundedIcon from '@mui/icons-material/ListAltRounded'
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
@@ -38,6 +39,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
 import { MarkdownView } from '../components/MarkdownView'
+import { QuizDialog } from '../components/QuizDialog'
 import { sectionsFromMarkdown } from '../lib/markdown'
 import type { ChapterRef, DocumentContent, LibraryKind, NoteEntry } from '@shared/types'
 
@@ -66,6 +68,7 @@ export function ReaderPage() {
   const [explaining, setExplaining] = useState(false)
   const [selection, setSelection] = useState<{ text: string; x: number; y: number } | null>(null)
   const [noteDraft, setNoteDraft] = useState('')
+  const [quizOpen, setQuizOpen] = useState(false)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const saveTimer = useRef<number | null>(null)
   const lastSaved = useRef(0)
@@ -300,6 +303,11 @@ export function ReaderPage() {
                   精读本章
                 </Button>
               </span>
+            </Tooltip>
+            <Tooltip title="根据本章内容出题自测">
+              <Button size="small" variant="outlined" startIcon={<QuizRoundedIcon />} onClick={() => setQuizOpen(true)}>
+                出题
+              </Button>
             </Tooltip>
             <Button size="small" startIcon={<EditRoundedIcon />} onClick={() => navigate(`/editor/${kind}/${nodeId}`)}>
               编辑
@@ -566,6 +574,15 @@ export function ReaderPage() {
           本章相关笔记共 {notes.length} 条，保存在本机 notes.json。
         </Typography>
       ) : null}
+
+      <QuizDialog
+        open={quizOpen}
+        onClose={() => setQuizOpen(false)}
+        sourceId={nodeId}
+        contextText={readableText}
+        title={activeSection?.title ? `${title} · ${activeSection.title}` : title}
+        count={3}
+      />
     </Stack>
   )
 }

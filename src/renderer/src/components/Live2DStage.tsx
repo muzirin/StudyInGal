@@ -160,7 +160,7 @@ export function Live2DStage({ character, height = 320, showControls = true, bare
               component="img"
               src={toAssetUrl(sprite)}
               alt={character?.name ?? '角色'}
-              className={bare ? 'sig-breathe' : undefined}
+             
               sx={{
                 maxHeight: bare ? height : height - 80,
                 maxWidth: '100%',
@@ -168,7 +168,7 @@ export function Live2DStage({ character, height = 320, showControls = true, bare
               }}
             />
           ) : (
-            <Typography className={bare ? 'sig-breathe' : undefined} sx={{ fontSize: bare ? height * 0.42 : 72, lineHeight: 1 }}>
+            <Typography sx={{ fontSize: bare ? height * 0.42 : 72, lineHeight: 1 }}>
               {character?.avatar ?? '🌸'}
             </Typography>
           )}

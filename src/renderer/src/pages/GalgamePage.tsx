@@ -20,6 +20,7 @@ import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded'
 import SaveRoundedIcon from '@mui/icons-material/SaveRounded'
 import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded'
 import Tooltip from '@mui/material/Tooltip'
+import QuizRoundedIcon from '@mui/icons-material/QuizRounded'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
@@ -227,6 +228,12 @@ export function GalgamePage() {
                   </Typography>
                   <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ my: 1 }}>
                     <Chip size="small" label={`${script.lines.length} 行`} />
+                    <Chip
+                      size="small"
+                      color={script.questions.length > 0 ? 'primary' : 'default'}
+                      variant={script.questions.length > 0 ? 'filled' : 'outlined'}
+                      label={script.questions.length > 0 ? `题 ${script.questions.length}` : '无题目'}
+                    />
                     {script.sourceId === '__example__' ? <Chip size="small" color="secondary" label="示例" /> : null}
                     <Chip size="small" variant="outlined" label={script.model ?? '未知模型'} />
                   </Stack>
@@ -267,6 +274,24 @@ export function GalgamePage() {
                         Markdown
                       </Button>
                     </Tooltip>
+                    {script.questions.length === 0 ? (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<QuizRoundedIcon />}
+                        onClick={async () => {
+                          try {
+                            const result = await api.quiz.generateForScript(script.id, 6)
+                            toast('success', `已生成 ${result.questions.length} 道题并保存到剧本`)
+                            await refresh()
+                          } catch (error) {
+                            toast('error', `出题失败：${(error as Error).message}`)
+                          }
+                        }}
+                      >
+                        出题
+                      </Button>
+                    ) : null}
                     <IconButton
                       size="small"
                       onClick={async () => {

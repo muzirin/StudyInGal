@@ -88,6 +88,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
     autoScene: true,
     customScenes: []
   },
+  quiz: {
+    autoAtSceneEnd: true,
+    count: 3
+  },
   live2d: {
     enabled: false,
     modelPath: null,

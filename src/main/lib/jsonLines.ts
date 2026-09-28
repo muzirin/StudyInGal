@@ -7,6 +7,8 @@
  *   2. 按字符扫描数组，逐个提取「完整的对象」，丢弃最后一个不完整对象
  *   3. 对仍无法解析的对象，用正则逐字段抽取（容忍未转义的换行等）
  */
+import { findArrayPayload, scanJsonObjects, unescapeJsonString } from './jsonScan'
+
 export interface RawDialogueLine {
   speaker: string
   text: string
@@ -23,103 +25,14 @@ export interface ParseDialogueResult {
 
 const SPEAKERS = new Set(['character', 'user', 'narration'])
 
-const stripFences = (value: string): string =>
-  value
-    .replace(/^\s*```(?:json)?\s*/i, '')
-    .replace(/\s*```\s*$/i, '')
-    .trim()
-
-/** 从 start 处的 '[' 开始，找到与之匹配的 ']'；被截断时返回剩余全部内容。 */
-function sliceArray(text: string, start: number): string {
-  let depth = 0
-  let inString = false
-  let escaped = false
-  for (let index = start; index < text.length; index += 1) {
-    const char = text[index]
-    if (inString) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === '"') inString = false
-      continue
-    }
-    if (char === '"') inString = true
-    else if (char === '[') depth += 1
-    else if (char === ']') {
-      depth -= 1
-      if (depth === 0) return text.slice(start, index + 1)
-    }
-  }
-  return text.slice(start)
-}
-
-/** 取出 JSON 主体：优先 {"lines": [...]}，其次顶层数组。 */
-function slicePayload(content: string): string {
-  const text = stripFences(content)
-  const linesIndex = text.search(/"lines"\s*:/)
-  if (linesIndex >= 0) {
-    const arrayStart = text.indexOf('[', linesIndex)
-    if (arrayStart >= 0) return sliceArray(text, arrayStart)
-  }
-  const arrayStart = text.indexOf('[')
-  if (arrayStart >= 0) return sliceArray(text, arrayStart)
-  return text
-}
-
 /** 从被截断的数组文本里，扫描出所有「完整的」顶层对象。 */
-function scanObjects(arrayText: string): { objects: string[]; truncated: boolean } {
-  const objects: string[] = []
-  let depth = 0
-  let start = -1
-  let inString = false
-  let escaped = false
-
-  for (let index = 0; index < arrayText.length; index += 1) {
-    const char = arrayText[index]
-
-    if (inString) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === '"') inString = false
-      continue
-    }
-
-    if (char === '"') {
-      inString = true
-      continue
-    }
-    if (char === '{') {
-      if (depth === 0) start = index
-      depth += 1
-      continue
-    }
-    if (char === '}') {
-      depth -= 1
-      if (depth === 0 && start >= 0) {
-        objects.push(arrayText.slice(start, index + 1))
-        start = -1
-      }
-      continue
-    }
-  }
-
-  // 结尾仍在字符串或对象中间 → 说明被截断
-  const truncated = depth > 0 || inString
-  return { objects, truncated }
-}
-
-const unescape = (value: string): string =>
-  value
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '')
-    .replace(/\\t/g, '\t')
-    .replace(/\\"/g, '"')
-    .replace(/\\\\/g, '\\')
+const scanObjects = scanJsonObjects
 
 /** 对象级 JSON.parse 失败时，按字段正则抽取。 */
 function extractFields(objectText: string): RawDialogueLine | null {
   const field = (name: string): string | null => {
     const match = objectText.match(new RegExp(`"${name}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`))
-    return match ? unescape(match[1]) : null
+    return match ? unescapeJsonString(match[1]) : null
   }
   const text = field('text')
   if (!text) return null
@@ -141,7 +54,7 @@ const normalize = (input: unknown, emotions: readonly string[]): RawDialogueLine
 }
 
 export function parseDialogueJson(content: string, emotions: readonly string[]): ParseDialogueResult {
-  const payload = slicePayload(content)
+  const payload = findArrayPayload(content, 'lines')
 
   // 1) 严格解析
   try {
