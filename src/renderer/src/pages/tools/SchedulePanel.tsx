@@ -46,7 +46,8 @@ export function SchedulePanel() {
     end: '',
     location: '',
     repeat: 'none' as RepeatRule,
-    description: ''
+    description: '',
+    reminderMinutes: 10 as number | null
   })
 
   const refresh = async (): Promise<void> => setEvents(await api.schedule.list())
@@ -70,7 +71,8 @@ export function SchedulePanel() {
       end: form.end ? new Date(form.end).getTime() : null,
       location: form.location,
       repeat: form.repeat,
-      description: form.description
+      description: form.description,
+      reminderMinutes: form.reminderMinutes
     })
     setOpen(false)
     setForm({ ...form, title: '', description: '', location: '' })
@@ -147,7 +149,7 @@ export function SchedulePanel() {
                   }
                   secondary={`${formatDateTime(event.start)}${event.location ? ` · ${event.location}` : ''}${
                     event.repeat !== 'none' ? ` · 重复：${event.repeat}` : ''
-                  }`}
+                  }${event.reminderMinutes ? ` · 提前 ${event.reminderMinutes} 分钟提醒` : ''}`}
                 />
               </ListItem>
             ))}
@@ -190,6 +192,22 @@ export function SchedulePanel() {
               <MenuItem value="weekly">每周</MenuItem>
               <MenuItem value="monthly">每月</MenuItem>
               <MenuItem value="yearly">每年</MenuItem>
+            </TextField>
+            <TextField
+              select
+              label="提醒"
+              value={form.reminderMinutes === null ? 'none' : String(form.reminderMinutes)}
+              onChange={(event) =>
+                setForm({ ...form, reminderMinutes: event.target.value === 'none' ? null : Number(event.target.value) })
+              }
+              helperText="到点会弹出系统通知与应用内提示"
+            >
+              <MenuItem value="none">不提醒</MenuItem>
+              <MenuItem value="5">提前 5 分钟</MenuItem>
+              <MenuItem value="10">提前 10 分钟</MenuItem>
+              <MenuItem value="15">提前 15 分钟</MenuItem>
+              <MenuItem value="30">提前 30 分钟</MenuItem>
+              <MenuItem value="60">提前 1 小时</MenuItem>
             </TextField>
           </Stack>
         </DialogContent>
