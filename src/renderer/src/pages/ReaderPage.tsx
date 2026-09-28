@@ -88,6 +88,8 @@ export function ReaderPage() {
   const [selection, setSelection] = useState<{ text: string; x: number; y: number } | null>(null)
   const [noteDraft, setNoteDraft] = useState('')
   const contentRef = useRef<HTMLDivElement | null>(null)
+  const saveTimer = useRef<number | null>(null)
+  const lastSaved = useRef(0)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -148,6 +150,35 @@ export function ReaderPage() {
     if (activeSection) return activeSection.content
     return document?.text ?? ''
   }, [activeSection, document?.text])
+
+  // 记录阅读进度：滚动容器是 AppShell 的 main，节流后写回库索引
+  useEffect(() => {
+    const scroller = contentRef.current?.closest('main') as HTMLElement | null
+    if (!scroller) return
+    const persist = (value: number): void => {
+      if (Math.abs(value - lastSaved.current) < 0.02) return
+      lastSaved.current = value
+      void api.library.update(kind, nodeId, { readingProgress: value }).catch(() => undefined)
+    }
+    const onScroll = (): void => {
+      if (saveTimer.current) return
+      saveTimer.current = window.setTimeout(() => {
+        saveTimer.current = null
+        const max = scroller.scrollHeight - scroller.clientHeight
+        const ratio = max > 0 ? Math.min(1, Math.max(0, scroller.scrollTop / max)) : 0
+        const chapterRatio =
+          document?.format === 'folder' && sections.length > 1
+            ? (sections.findIndex((section) => section.anchor === activeChapter) + 1) / sections.length
+            : 0
+        persist(Math.max(ratio, chapterRatio))
+      }, 800)
+    }
+    scroller.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      scroller.removeEventListener('scroll', onScroll)
+      if (saveTimer.current) window.clearTimeout(saveTimer.current)
+    }
+  }, [kind, nodeId, document?.format, sections, activeChapter])
 
   const wordCount = useMemo(() => readableText.replace(/\s+/g, '').length, [readableText])
 

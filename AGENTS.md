@@ -19,6 +19,10 @@ npm run build:win    # 打包 Windows
 - 主进程 / 预加载脚本使用 **CommonJS** 输出（package.json 没有 `"type": "module"`）。
   不要在主进程引入 ESM-only 依赖（会 `require` 失败）；如需使用，请自行用原生 fetch/fs 实现或改写为 CJS 兼容。
 - 渲染进程用 Vite 打包，可以使用任意 ESM 依赖。
+- **不要用 PowerShell 的 `Get-Content` / `Set-Content` 改写源码文件**：Windows PowerShell 5.1 默认按 ANSI 读写，
+  会把中文变成 `?` / `\uFFFD`（本项目已经踩过一次坑）。需要脚本化改写时，使用 Node 脚本或 .NET 的
+  `[System.IO.File]::ReadAllText/WriteAllText` 并显式指定 UTF-8。
+- 提交前可快速自检乱码：`node -e "..."` 扫描 `\uFFFD` 与连续 `???`。
 
 ## 架构约定
 

@@ -14,6 +14,7 @@ import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded'
 import CloudRoundedIcon from '@mui/icons-material/CloudRounded'
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import BugReportRoundedIcon from '@mui/icons-material/BugReportRounded'
+import StickyNote2RoundedIcon from '@mui/icons-material/StickyNote2Rounded'
 
 export type ModuleGroup = '学习' | '工具' | '资源' | '系统'
 
@@ -86,6 +87,15 @@ export const MODULES: ModuleDef[] = [
     group: '学习',
     description: '本地/云盘存档、标签、收藏与进度',
     feature: '存档管理'
+  },
+  {
+    id: 'notes',
+    label: '我的笔记',
+    path: '/notes',
+    icon: StickyNote2RoundedIcon,
+    group: '学习',
+    description: '精读笔记、随手笔记与原文引用，按文献归类',
+    feature: '笔记中心'
   },
   {
     id: 'tools',

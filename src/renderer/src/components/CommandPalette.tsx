@@ -43,6 +43,10 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
+  const [corpus, setCorpus] = useState<{ nodes: { id: string; title: string; kind: 'paper' | 'textbook'; format: string }[]; scripts: { id: string; title: string }[] }>({
+    nodes: [],
+    scripts: []
+  })
   const listRef = useRef<HTMLUListElement | null>(null)
 
   const settings = useAppStore((state) => state.settings)
@@ -137,14 +141,61 @@ export function CommandPalette() {
   const filtered = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     if (!keyword) return commands
-    return commands.filter((command) =>
-      `${command.label} ${command.hint} ${command.group}`.toLowerCase().includes(keyword)
-    )
-  }, [commands, query])
+    const base = commands.filter((command) => `${command.label} ${command.hint} ${command.group}`.toLowerCase().includes(keyword))
+
+    const nodeHits: Command[] = corpus.nodes
+      .filter((node) => node.title.toLowerCase().includes(keyword))
+      .slice(0, 5)
+      .map((node) => ({
+        id: `node:${node.id}`,
+        label: node.title,
+        hint: `${node.kind === 'paper' ? '论文' : '教材'} · ${node.format.toUpperCase()}`,
+        group: '文献',
+        icon: <SearchRoundedIcon sx={{ fontSize: 18 }} />,
+        run: () => navigate(`/reader/${node.kind}/${node.id}`)
+      }))
+
+    const scriptHits: Command[] = corpus.scripts
+      .filter((script) => script.title.toLowerCase().includes(keyword))
+      .slice(0, 4)
+      .map((script) => ({
+        id: `script:${script.id}`,
+        label: script.title,
+        hint: 'Galgame 剧本',
+        group: '剧本',
+        icon: <AutoAwesomeRoundedIcon sx={{ fontSize: 18 }} />,
+        run: () => navigate(`/galgame/${script.id}`)
+      }))
+
+    return [...base, ...nodeHits, ...scriptHits]
+  }, [commands, query, corpus, navigate])
 
   useEffect(() => {
     setCursor(0)
   }, [query, open])
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    void (async () => {
+      const [papers, textbooks, scripts] = await Promise.all([
+        api.library.snapshot('paper').catch(() => null),
+        api.library.snapshot('textbook').catch(() => null),
+        api.gal.listScripts().catch(() => [])
+      ])
+      if (cancelled) return
+      setCorpus({
+        nodes: [
+          ...(papers?.nodes ?? []).map((node) => ({ id: node.id, title: node.title, kind: 'paper' as const, format: node.format })),
+          ...(textbooks?.nodes ?? []).map((node) => ({ id: node.id, title: node.title, kind: 'textbook' as const, format: node.format }))
+        ],
+        scripts: scripts.map((script) => ({ id: script.id, title: script.title }))
+      })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [open])
 
   const close = useCallback(() => {
     setOpen(false)

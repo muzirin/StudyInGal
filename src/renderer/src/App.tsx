@@ -16,6 +16,7 @@ import { CompanionPage } from './pages/CompanionPage'
 import { GalgamePage } from './pages/GalgamePage'
 import { GalgamePlayerPage } from './pages/GalgamePlayerPage'
 import { ArchivePage } from './pages/ArchivePage'
+import { NotesPage } from './pages/NotesPage'
 import { ToolsPage } from './pages/ToolsPage'
 import { XueXiTongPage } from './pages/XueXiTongPage'
 import { PlaygroundPage } from './pages/PlaygroundPage'
@@ -113,6 +114,7 @@ export function App() {
               <Route path="/galgame" element={<GalgamePage />} />
               <Route path="/galgame/:scriptId" element={<GalgamePlayerPage />} />
               <Route path="/archive" element={<ArchivePage />} />
+              <Route path="/notes" element={<NotesPage />} />
               <Route path="/tools" element={<ToolsPage />} />
               <Route path="/xuexitong" element={<XueXiTongPage />} />
               <Route path="/playground" element={<PlaygroundPage />} />

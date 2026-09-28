@@ -33,7 +33,7 @@ type Handler = (payload: Payload, event: Electron.IpcMainInvokeEvent) => unknown
 const firstWindow = (): BrowserWindow | null => BrowserWindow.getAllWindows()[0] ?? null
 
 const docFilters = [
-  { name: '?????', extensions: SUPPORTED_DOCUMENT_EXTENSIONS.map((ext) => ext.replace('.', '')) }
+  { name: '支持的文档', extensions: SUPPORTED_DOCUMENT_EXTENSIONS.map((ext) => ext.replace('.', '')) }
 ]
 
 const asString = (value: unknown, fallback = ''): string => (typeof value === 'string' ? value : fallback)
@@ -108,7 +108,7 @@ const handlers: Record<string, Handler> = {
         headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'StudyInGal' }
       })
       if (!response.ok) {
-        return { ok: false, current, latest: null, hasUpdate: false, url: null, message: `GitHub ?? ${response.status}` }
+        return { ok: false, current, latest: null, hasUpdate: false, url: null, message: `GitHub 返回 ${response.status}` }
       }
       const data = (await response.json()) as { tag_name?: string; html_url?: string; published_at?: string; body?: string }
       const latest = (data.tag_name ?? '').replace(/^v/, '')
@@ -129,7 +129,7 @@ const handlers: Record<string, Handler> = {
         hasUpdate,
         url: data.html_url ?? null,
         publishedAt: data.published_at ?? null,
-        message: hasUpdate ? '?????' : '??????'
+        message: hasUpdate ? '发现新版本' : '已是最新版本'
       }
     } catch (error) {
       return { ok: false, current, latest: null, hasUpdate: false, url: null, message: (error as Error).message }
@@ -177,14 +177,14 @@ const handlers: Record<string, Handler> = {
     libraryService.updateNode(payload.kind as LibraryKind, asString(payload.id), payload.patch as never),
   [CHANNELS.library.read]: async (payload) => {
     const found = libraryService.findNode(asString(payload.nodeId))
-    if (!found) throw new Error('?????')
+    if (!found) throw new Error('文献不存在')
     const document = await readDocument(found.node)
     history.addHistory({
       kind: found.kind,
       title: found.node.title,
-      subtitle: `${document.format.toUpperCase()} � ${
-        found.kind === 'paper' ? '??' : '??'
-      }${found.node.format === 'folder' ? ` � ${found.node.chapters.length} ?` : ''}`,
+      subtitle: `${document.format.toUpperCase()} · ${
+        found.kind === 'paper' ? '论文' : '教材'
+      }${found.node.format === 'folder' ? ` · ${found.node.chapters.length} 章` : ''}`,
       refId: found.node.id,
       route: `/reader/${found.kind}/${found.node.id}`
     })
@@ -192,18 +192,18 @@ const handlers: Record<string, Handler> = {
   },
   [CHANNELS.library.write]: async (payload) => {
     const found = libraryService.findNode(asString(payload.nodeId))
-    if (!found) throw new Error('?????')
+    if (!found) throw new Error('文献不存在')
     await writeDocument(found.node, asString(payload.content), payload.targetPath as string | undefined)
     libraryService.updateNode(found.kind, found.node.id, { updatedAt: Date.now() })
   },
   [CHANNELS.library.merge]: async (payload) => {
     const found = libraryService.findNode(asString(payload.nodeId))
-    if (!found) throw new Error('?????')
+    if (!found) throw new Error('文献不存在')
     return mergeNode(found.node)
   },
   [CHANNELS.library.mergeExport]: async (payload) => {
     const found = libraryService.findNode(asString(payload.nodeId))
-    if (!found) throw new Error('?????')
+    if (!found) throw new Error('文献不存在')
     const merged = await mergeNode(found.node)
     const target = asString(payload.target)
     await mkdir(join(target, '..'), { recursive: true }).catch(() => undefined)
@@ -212,12 +212,12 @@ const handlers: Record<string, Handler> = {
   },
   [CHANNELS.library.chapters]: (payload) => {
     const found = libraryService.findNode(asString(payload.nodeId))
-    if (!found) throw new Error('?????')
+    if (!found) throw new Error('文献不存在')
     return found.node.chapters
   },
   [CHANNELS.library.ocr]: async (payload) => {
     const found = libraryService.findNode(asString(payload.nodeId))
-    if (!found) throw new Error('?????')
+    if (!found) throw new Error('文献不存在')
     libraryService.updateNode(found.kind, found.node.id, { ocrStatus: 'running' })
     try {
       const result = await runOcr(found.node, asString(payload.language, 'chi_sim+eng'))
@@ -277,7 +277,7 @@ const handlers: Record<string, Handler> = {
     history.addHistory({
       kind: 'script',
       title: script.title,
-      subtitle: `${script.lines.length} ? � ${script.model ?? '????'}`,
+      subtitle: `${script.lines.length} 行 · ${script.model ?? '未知模型'}`,
       refId: script.id,
       route: `/galgame/${script.id}`
     })
@@ -295,7 +295,7 @@ const handlers: Record<string, Handler> = {
     const result = window
       ? await dialog.showOpenDialog(window, {
           properties: ['openFile', 'multiSelections'],
-          filters: [{ name: '???', extensions: ['json'] }]
+          filters: [{ name: '角色卡', extensions: ['json'] }]
         })
       : { canceled: true, filePaths: [] as string[] }
     if (result.canceled) return characters.listCharacters()
@@ -304,7 +304,7 @@ const handlers: Record<string, Handler> = {
         const parsed = JSON.parse(await readFile(file, 'utf8')) as Character
         characters.upsertCharacter({ ...parsed, id: undefined })
       } catch (error) {
-        console.warn('[characters] ????', file, (error as Error).message)
+        console.warn('[characters] 导入失败', file, (error as Error).message)
       }
     }
     return characters.listCharacters()
@@ -326,7 +326,7 @@ const handlers: Record<string, Handler> = {
   },
   [CHANNELS.gal.exportSave]: async (payload) => {
     const script = scripts.getScript(asString(payload.scriptId))
-    if (!script) throw new Error('?????')
+    if (!script) throw new Error('剧本不存在')
     const save = archive.upsertSave({
       title: script.title,
       kind: script.sourceKind,
@@ -355,7 +355,7 @@ const handlers: Record<string, Handler> = {
       history.addHistory({
         kind: 'save',
         title: save.title,
-        subtitle: `?? � ${save.kind === 'paper' ? '??' : '??'}`,
+        subtitle: `存档 · ${save.kind === 'paper' ? '论文' : '教材'}`,
         refId: save.scriptId,
         route: `/galgame/${save.scriptId}`
       })
@@ -477,7 +477,7 @@ export function registerIpc(): void {
   for (const channel of ALL_CHANNELS) {
     const handler = handlers[channel]
     ipcMain.handle(channel, async (event, payload) => {
-      if (!handler) throw new Error(`???????${channel}`)
+      if (!handler) throw new Error(`未实现的通道：${channel}`)
       try {
         return await handler((payload ?? {}) as Payload, event)
       } catch (error) {
@@ -500,6 +500,6 @@ export function registerIpc(): void {
   })
 
   console.info(
-    `[StudyInGal] ??? ${ALL_CHANNELS.length} ? IPC ?? � ???? ${app.getPath('userData')} � ${GITHUB_URL}`
+    `[StudyInGal] 已注册 ${ALL_CHANNELS.length} 个 IPC 通道 · 数据目录 ${app.getPath('userData')} · ${GITHUB_URL}`
   )
 }
