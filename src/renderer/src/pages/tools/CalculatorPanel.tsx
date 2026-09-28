@@ -88,7 +88,7 @@ export function CalculatorPanel() {
         ) : (
           <Stack spacing={1}>
             {history.map((entry, index) => (
-              <Box key={index} sx={{ p: 1.5, borderRadius: 2, bgcolor: 'var(--sig-surface-variant)' }}>
+              <Box key={index} sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'var(--sig-surface-variant)' }}>
                 <Chip size="small" label={entry.label} sx={{ mb: 0.5 }} />
                 <Typography variant="caption" color="text.secondary" display="block" sx={{ fontFamily: 'monospace' }}>
                   {entry.expression}

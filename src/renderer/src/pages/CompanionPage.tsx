@@ -173,7 +173,7 @@ export function CompanionPage() {
           selected={item.id === panel}
           onClick={() => setPanel(item.id)}
           sx={{
-            borderRadius: 3,
+            borderRadius: 2,
             mb: 0.5,
             minHeight: 46,
             '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.14) }
@@ -214,7 +214,7 @@ export function CompanionPage() {
             position: 'sticky',
             top: 8,
             p: 1,
-            borderRadius: 3,
+            borderRadius: 2,
             border: '1px solid',
             borderColor: 'divider',
             bgcolor: alpha(theme.palette.background.paper, 0.7)
@@ -236,7 +236,7 @@ export function CompanionPage() {
                 gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 300px' },
                 gap: 2.5,
                 p: 2.5,
-                borderRadius: 4,
+                borderRadius: 2,
                 border: '1px solid',
                 borderColor: 'divider',
                 background: `radial-gradient(110% 80% at 84% 6%, ${alpha(theme.palette.primary.main, 0.22)} 0%, transparent 60%), var(--sig-surface-variant)`
@@ -289,7 +289,7 @@ export function CompanionPage() {
         ) : null}
 
         {panel === 'history' ? (
-          <Box sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
               <Typography variant="subtitle1" fontWeight={700} sx={{ flexGrow: 1 }}>
                 会话记录
@@ -321,7 +321,7 @@ export function CompanionPage() {
                       setMessages(conversation.messages)
                       setPanel('chat')
                     }}
-                    sx={{ borderRadius: 2.5, mb: 0.25 }}
+                    sx={{ borderRadius: 1.5, mb: 0.25 }}
                   >
                     <ListItemIconPlaceholder />
                     <ListItemText
@@ -367,7 +367,7 @@ export function CompanionPage() {
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 320px' }, gap: 2.5, alignItems: 'start' }}>
             <Box
               sx={{
-                borderRadius: 4,
+                borderRadius: 2,
                 border: '1px solid',
                 borderColor: 'divider',
                 bgcolor: alpha(theme.palette.background.paper, 0.7),
@@ -428,7 +428,7 @@ export function CompanionPage() {
                           maxWidth: '92%',
                           bgcolor: message.role === 'user' ? 'primary.main' : 'var(--sig-surface-variant)',
                           color: message.role === 'user' ? 'primary.contrastText' : 'text.primary',
-                          borderRadius: 3,
+                          borderRadius: 2,
                           px: 2,
                           py: 1.25
                         }}

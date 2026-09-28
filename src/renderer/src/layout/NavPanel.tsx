@@ -109,7 +109,7 @@ export function NavPanel({ collapsed, onNavigate }: Props) {
           mb: 0.25,
           pl: indent,
           minHeight: 40,
-          borderRadius: 2.5,
+          borderRadius: 1.5,
           '&.Mui-selected': {
             bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.24 : 0.14),
             '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) }
@@ -203,7 +203,7 @@ export function NavPanel({ collapsed, onNavigate }: Props) {
                   <ListItemButton
                     onClick={() => setExpanded((prev) => ({ ...prev, [group.id]: !isOpen }))}
                     sx={{
-                      borderRadius: 2.5,
+                      borderRadius: 1.5,
                       minHeight: 42,
                       bgcolor: hasActive && !isOpen ? alpha(theme.palette.primary.main, 0.08) : 'transparent'
                     }}
@@ -252,7 +252,7 @@ function RailItem({ module, active, onNavigate }: { module: ModuleDef; active: b
         sx={{
           width: 48,
           height: 48,
-          borderRadius: 3,
+          borderRadius: 2,
           display: 'grid',
           placeItems: 'center',
           color: active ? 'primary.contrastText' : 'text.secondary',

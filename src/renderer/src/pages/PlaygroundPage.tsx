@@ -171,7 +171,7 @@ export function PlaygroundPage() {
               width: '100%',
               minHeight: 260,
               p: 2,
-              borderRadius: 2,
+              borderRadius: 1.5,
               border: '1px solid',
               borderColor: 'divider',
               bgcolor: '#14121a',
@@ -209,7 +209,7 @@ export function PlaygroundPage() {
         >
           <Stack spacing={1.5} sx={{ p: 2 }}>
             {result.stdout ? (
-              <Box component="pre" sx={{ m: 0, p: 2, borderRadius: 2, bgcolor: 'var(--sig-surface-variant)', fontSize: 13, overflow: 'auto', maxHeight: 300 }}>
+              <Box component="pre" sx={{ m: 0, p: 2, borderRadius: 1.5, bgcolor: 'var(--sig-surface-variant)', fontSize: 13, overflow: 'auto', maxHeight: 300 }}>
                 {result.stdout}
               </Box>
             ) : null}

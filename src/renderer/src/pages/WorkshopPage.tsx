@@ -125,7 +125,7 @@ export function WorkshopPage() {
           key={item.id}
           selected={item.id === panel}
           onClick={() => setPanel(item.id)}
-          sx={{ borderRadius: 3, mb: 0.5, minHeight: 46, '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.14) } }}
+          sx={{ borderRadius: 2, mb: 0.5, minHeight: 46, '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.14) } }}
         >
           <ListItemIcon sx={{ minWidth: 34, color: item.id === panel ? 'primary.main' : 'text.secondary' }}>{item.icon}</ListItemIcon>
           <ListItemText
@@ -160,7 +160,7 @@ export function WorkshopPage() {
             position: 'sticky',
             top: 8,
             p: 1,
-            borderRadius: 3,
+            borderRadius: 2,
             border: '1px solid',
             borderColor: 'divider',
             bgcolor: alpha(theme.palette.background.paper, 0.7)

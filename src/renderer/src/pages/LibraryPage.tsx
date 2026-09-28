@@ -342,7 +342,7 @@ export function LibraryPage() {
           direction="row"
           alignItems="center"
           spacing={0.5}
-          sx={{ px: 1, py: 0.5, cursor: 'pointer', borderRadius: 2, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) } }}
+          sx={{ px: 1, py: 0.5, cursor: 'pointer', borderRadius: 1.5, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.06) } }}
           onClick={() => setOpenSections((prev) => ({ ...prev, [key]: !isOpen }))}
         >
           <ExpandMoreRoundedIcon
@@ -386,7 +386,7 @@ export function LibraryPage() {
                     sx={{
                       px: 1,
                       py: 0.5,
-                      borderRadius: 2,
+                      borderRadius: 1.5,
                       cursor: 'pointer',
                       bgcolor: active ? alpha(theme.palette.primary.main, 0.14) : 'transparent',
                       '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1), '& .meta-del': { opacity: 1 } }
@@ -421,7 +421,7 @@ export function LibraryPage() {
       spacing={0.5}
       sx={{
         p: 1.25,
-        borderRadius: 3,
+        borderRadius: 2,
         border: '1px solid',
         borderColor: 'divider',
         bgcolor: alpha(theme.palette.background.paper, 0.7),
@@ -450,7 +450,7 @@ export function LibraryPage() {
           direction="row"
           alignItems="center"
           spacing={0.5}
-          sx={{ px: 1, py: 0.5, cursor: 'pointer', borderRadius: 2 }}
+          sx={{ px: 1, py: 0.5, cursor: 'pointer', borderRadius: 1.5 }}
           onClick={() => setOpenSections((prev) => ({ ...prev, collection: !prev.collection }))}
         >
           <ExpandMoreRoundedIcon
@@ -503,7 +503,7 @@ export function LibraryPage() {
             position: 'fixed',
             inset: 60,
             zIndex: 2000,
-            borderRadius: 4,
+            borderRadius: 2,
             border: '2px dashed',
             borderColor: 'primary.main',
             bgcolor: alpha(theme.palette.primary.main, 0.08),

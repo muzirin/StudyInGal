@@ -192,7 +192,7 @@ export function SettingsPage() {
             position: 'sticky',
             top: 8,
             p: 1,
-            borderRadius: 3,
+            borderRadius: 2,
             border: '1px solid',
             borderColor: 'divider',
             bgcolor: alpha(theme.palette.background.paper, 0.7)
@@ -239,7 +239,7 @@ export function SettingsPage() {
                     selected={isActive}
                     onClick={() => setActive(section.id)}
                     sx={{
-                      borderRadius: 3,
+                      borderRadius: 2,
                       mb: 0.5,
                       minHeight: 46,
                       '&.Mui-selected': {

@@ -129,7 +129,7 @@ export function CloudPage() {
           selected={item.id === panel}
           onClick={() => setPanel(item.id)}
           sx={{
-            borderRadius: 3,
+            borderRadius: 2,
             mb: 0.5,
             minHeight: 46,
             '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.14) }
@@ -168,7 +168,7 @@ export function CloudPage() {
             position: 'sticky',
             top: 8,
             p: 1,
-            borderRadius: 3,
+            borderRadius: 2,
             border: '1px solid',
             borderColor: 'divider',
             bgcolor: alpha(theme.palette.background.paper, 0.7)
@@ -266,7 +266,7 @@ export function CloudPage() {
             ) : (
               <List dense sx={{ px: 1, pb: 1 }}>
                 {log.map((entry) => (
-                  <ListItemButton key={entry.id} sx={{ borderRadius: 2, mb: 0.25 }} onClick={() => setPanel('mounts')}>
+                  <ListItemButton key={entry.id} sx={{ borderRadius: 1.5, mb: 0.25 }} onClick={() => setPanel('mounts')}>
                     <ListItemIcon sx={{ minWidth: 34 }}>
                       <Chip size="small" label={entry.conflicts > 0 ? '冲突' : '完成'} color={entry.conflicts > 0 ? 'warning' : 'success'} />
                     </ListItemIcon>

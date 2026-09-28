@@ -125,7 +125,7 @@ export function NotesPage() {
             position: 'sticky',
             top: 8,
             p: 1,
-            borderRadius: 3,
+            borderRadius: 2,
             border: '1px solid',
             borderColor: 'divider',
             bgcolor: alpha(theme.palette.background.paper, 0.7),
@@ -138,7 +138,7 @@ export function NotesPage() {
             按文献
           </Typography>
           <List dense disablePadding>
-            <ListItemButton selected={activeNode === 'all'} onClick={() => setActiveNode('all')} sx={{ borderRadius: 2.5, mb: 0.25 }}>
+            <ListItemButton selected={activeNode === 'all'} onClick={() => setActiveNode('all')} sx={{ borderRadius: 1.5, mb: 0.25 }}>
               <ListItemText primary={`全部文献（${counts.all}）`} primaryTypographyProps={{ variant: 'body2' }} />
             </ListItemButton>
             {documents.map((document) => (
@@ -146,7 +146,7 @@ export function NotesPage() {
                 key={document.id}
                 selected={activeNode === document.id}
                 onClick={() => setActiveNode(document.id)}
-                sx={{ borderRadius: 2.5, mb: 0.25 }}
+                sx={{ borderRadius: 1.5, mb: 0.25 }}
               >
                 <ListItemText
                   primary={document.title}

@@ -180,7 +180,7 @@ export function HomePage() {
           sx={{
             position: 'relative',
             overflow: 'hidden',
-            borderRadius: 4,
+            borderRadius: 2,
             border: '1px solid',
             borderColor: 'divider',
             minHeight: { xs: 400, md: 430 },
@@ -224,7 +224,7 @@ export function HomePage() {
               <Box
                 sx={{
                   p: 2.5,
-                  borderRadius: 3,
+                  borderRadius: 2,
                   bgcolor: alpha(theme.palette.background.paper, 0.86),
                   backdropFilter: 'blur(10px)',
                   border: '1px solid',
@@ -291,7 +291,7 @@ export function HomePage() {
         {/* ------------------------------ 历史记录 ------------------------------ */}
         <Box
           sx={{
-            borderRadius: 4,
+            borderRadius: 2,
             border: '1px solid',
             borderColor: 'divider',
             bgcolor: alpha(theme.palette.background.paper, 0.7),
@@ -357,7 +357,7 @@ export function HomePage() {
                           direction="row"
                           alignItems="center"
                           spacing={0.5}
-                          sx={{ cursor: 'pointer', py: 0.5, borderRadius: 2 }}
+                          sx={{ cursor: 'pointer', py: 0.5, borderRadius: 1.5 }}
                           onClick={() => setOpenBuckets((prev) => ({ ...prev, [bucket]: !isOpen }))}
                         >
                           <ExpandMoreRoundedIcon
@@ -375,7 +375,7 @@ export function HomePage() {
                                 key={entry.id}
                                 onClick={() => entry.route && navigate(entry.route)}
                                 title={entry.title}
-                                sx={{ borderRadius: 2.5, mb: 0.25, '&:hover .delete-history': { opacity: 1 } }}
+                                sx={{ borderRadius: 1.5, mb: 0.25, '&:hover .delete-history': { opacity: 1 } }}
                               >
                                 <ListItemIcon sx={{ minWidth: 34, color: 'primary.main' }}>
                                   {HISTORY_ICON[entry.kind]}
@@ -420,7 +420,7 @@ export function HomePage() {
       {/* ------------------------------ 右：导航 ------------------------------ */}
       <Box
         sx={{
-          borderRadius: 4,
+          borderRadius: 2,
           border: '1px solid',
           borderColor: 'divider',
           bgcolor: alpha(theme.palette.background.paper, 0.7),
@@ -465,7 +465,7 @@ export function HomePage() {
                       sx={{
                         cursor: 'pointer',
                         p: 1.25,
-                        borderRadius: 3,
+                        borderRadius: 2,
                         bgcolor: isOpen ? alpha(theme.palette.primary.main, 0.1) : 'var(--sig-surface-variant)',
                         transition: 'background-color 160ms ease'
                       }}
@@ -506,7 +506,7 @@ export function HomePage() {
                                 alignItems: 'center',
                                 gap: 1.25,
                                 p: 1,
-                                borderRadius: 2.5,
+                                borderRadius: 1.5,
                                 cursor: 'pointer',
                                 transition: 'background-color 140ms ease, transform 140ms ease',
                                 '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1), transform: 'translateX(2px)' }
@@ -516,7 +516,7 @@ export function HomePage() {
                                 sx={{
                                   width: 32,
                                   height: 32,
-                                  borderRadius: 2,
+                                  borderRadius: 1.5,
                                   display: 'grid',
                                   placeItems: 'center',
                                   bgcolor: alpha(theme.palette.primary.main, 0.14),

@@ -59,7 +59,7 @@ export function ToolsPage() {
             position: 'sticky',
             top: 8,
             p: 1,
-            borderRadius: 3,
+            borderRadius: 2,
             border: '1px solid',
             borderColor: 'divider',
             bgcolor: alpha(theme.palette.background.paper, 0.7)
@@ -80,7 +80,7 @@ export function ToolsPage() {
                   selected={isActive}
                   onClick={() => setActive(tool.id)}
                   sx={{
-                    borderRadius: 3,
+                    borderRadius: 2,
                     mb: 0.5,
                     minHeight: 46,
                     '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.14), '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) } }

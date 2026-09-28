@@ -50,13 +50,14 @@ export function defaultProvider(
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  schemaVersion: 2,
   theme: {
     palette: 'sakura',
     mode: 'system',
     navPosition: 'left',
     density: 'comfortable',
     touchOptimized: false,
-    radius: 16
+    radius: 6
   },
   locale: 'zh-CN',
   library: {

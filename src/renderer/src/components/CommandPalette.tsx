@@ -264,7 +264,7 @@ export function CommandPalette() {
       fullWidth
       maxWidth="sm"
       TransitionProps={{ timeout: 160 }}
-      PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+      PaperProps={{ sx: { borderRadius: 2, overflow: 'hidden' } }}
     >
       <Box
         onKeyDown={(event) => {
@@ -320,7 +320,7 @@ export function CommandPalette() {
                   onMouseEnter={() => setCursor(index)}
                   sx={{
                     mx: 1,
-                    borderRadius: 2,
+                    borderRadius: 1.5,
                     '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.14) }
                   }}
                 >

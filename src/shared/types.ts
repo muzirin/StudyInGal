@@ -529,6 +529,7 @@ export interface ThemeSettings {
 }
 
 export interface AppSettings {
+  schemaVersion: number
   theme: ThemeSettings
   locale: string
   library: {

@@ -224,7 +224,7 @@ export function GalgamePlayerPage() {
 
   return (
     <Stack spacing={2} sx={{ height: '100%' }}>
-      <Paper elevation={0} sx={{ p: 1.5, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Paper elevation={0} sx={{ p: 1.5, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
           <Typography variant="subtitle1" fontWeight={700} sx={{ flexGrow: 1, minWidth: 160 }} noWrap>
             {script.title}
@@ -283,7 +283,7 @@ export function GalgamePlayerPage() {
           position: 'relative',
           flexGrow: 1,
           minHeight: compact ? 420 : 480,
-          borderRadius: 4,
+          borderRadius: 2,
           overflow: 'hidden',
           border: '1px solid',
           borderColor: 'divider',
@@ -374,7 +374,7 @@ export function GalgamePlayerPage() {
                 multiline
                 minRows={2}
                 fullWidth
-                InputProps={{ sx: { bgcolor: 'rgba(255,255,255,0.94)', borderRadius: 2 } }}
+                InputProps={{ sx: { bgcolor: 'rgba(255,255,255,0.94)', borderRadius: 1.5 } }}
               />
               <Stack direction="row" spacing={1}>
                 <Button size="small" variant="contained" startIcon={<CheckRoundedIcon />} onClick={() => void saveLineEdit()}>
@@ -455,7 +455,7 @@ export function GalgamePlayerPage() {
                   setIndex(scene.start)
                   setSceneOpen(false)
                 }}
-                sx={{ borderRadius: 2.5, mb: 0.25 }}
+                sx={{ borderRadius: 1.5, mb: 0.25 }}
               >
                 <ListItemText
                   primary={`第 ${scene.index + 1} 幕 · ${scene.title}`}

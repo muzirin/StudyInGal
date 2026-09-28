@@ -213,7 +213,7 @@ export function LessonTablePanel() {
                   gap: 0.75,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
-                  borderRadius: 2,
+                  borderRadius: 1.5,
                   bgcolor: isToday ? alpha(theme.palette.primary.main, 0.12) : 'transparent'
                 }}
               >
@@ -310,7 +310,7 @@ export function LessonTablePanel() {
                   gridRow: `${rowStart + 2} / span ${rowSpan}`,
                   m: '2px',
                   p: 0.75,
-                  borderRadius: 2,
+                  borderRadius: 1.5,
                   bgcolor: alpha(color, 0.18),
                   borderLeft: `3px solid ${color}`,
                   overflow: 'hidden',

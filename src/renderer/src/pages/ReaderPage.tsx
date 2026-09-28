@@ -236,7 +236,7 @@ export function ReaderPage() {
   return (
     <Stack spacing={2} sx={{ minHeight: '100%' }}>
       {/* 顶部工具条 */}
-      <Paper elevation={0} sx={{ p: 1.5, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+      <Paper elevation={0} sx={{ p: 1.5, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
           <Box sx={{ minWidth: 0, flexGrow: 1 }}>
             <Stack direction="row" spacing={1} alignItems="center">
@@ -364,7 +364,7 @@ export function ReaderPage() {
               position: 'sticky',
               top: 8,
               p: 1,
-              borderRadius: 3,
+              borderRadius: 2,
               border: '1px solid',
               borderColor: 'divider',
               maxHeight: 'calc(100vh - 200px)',
@@ -401,7 +401,7 @@ export function ReaderPage() {
                       }
                     }}
                     sx={{
-                      borderRadius: 2.5,
+                      borderRadius: 1.5,
                       mb: 0.25,
                       '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.14) }
                     }}
@@ -417,7 +417,7 @@ export function ReaderPage() {
           </Paper>
         ) : null}
 
-        <Paper ref={contentRef} elevation={0} onMouseUp={captureSelection} sx={{ p: { xs: 2, md: 3 }, borderRadius: 3, border: '1px solid', borderColor: 'divider', minWidth: 0 }}>
+        <Paper ref={contentRef} elevation={0} onMouseUp={captureSelection} sx={{ p: { xs: 2, md: 3 }, borderRadius: 2, border: '1px solid', borderColor: 'divider', minWidth: 0 }}>
           {document?.format === 'pdf' && readableText.trim().length < 40 ? (
             <Alert severity="warning" sx={{ mb: 2 }}>
               该 PDF 可能是扫描件，未能提取到文本。可以先执行本地 OCR，或点击「外部打开」用系统阅读器查看。
@@ -590,7 +590,7 @@ function BlackboardNotes({
   return (
     <Box
       sx={{
-        borderRadius: 3,
+        borderRadius: 2,
         overflow: 'hidden',
         border: '1px solid',
         borderColor: 'divider',
@@ -636,7 +636,7 @@ function BlackboardNotes({
                 key={note.id}
                 sx={{
                   p: 1.25,
-                  borderRadius: 2,
+                  borderRadius: 1.5,
                   bgcolor: 'rgba(255,255,255,0.06)',
                   border: '1px solid rgba(233,243,236,0.12)',
                   '&:hover .note-del': { opacity: 1 }
@@ -685,7 +685,7 @@ function BlackboardNotes({
             sx: {
               color: '#e9f3ec',
               bgcolor: 'rgba(0,0,0,0.18)',
-              borderRadius: 2,
+              borderRadius: 1.5,
               '& fieldset': { borderColor: 'rgba(233,243,236,0.2)' },
               '&:hover fieldset': { borderColor: 'rgba(233,243,236,0.4)' }
             }

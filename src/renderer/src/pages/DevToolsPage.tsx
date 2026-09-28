@@ -147,7 +147,7 @@ function TerminalPanel() {
           />
         ))}
       </Stack>
-      <Box ref={containerRef} sx={{ height: 460, borderRadius: 2, overflow: 'hidden', bgcolor: '#14121a', p: 1 }} />
+      <Box ref={containerRef} sx={{ height: 460, borderRadius: 1.5, overflow: 'hidden', bgcolor: '#14121a', p: 1 }} />
     </Section>
   )
 }
@@ -205,7 +205,7 @@ function ErrorsPanel() {
       ) : (
         <Stack spacing={1.5} sx={{ p: 1 }}>
           {errors.slice(0, 20).map((error) => (
-            <Box key={error.id} sx={{ p: 1.5, borderRadius: 2, bgcolor: 'var(--sig-surface-variant)' }}>
+            <Box key={error.id} sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'var(--sig-surface-variant)' }}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <Chip size="small" color="error" label={error.context || 'unknown'} />
                 <Typography variant="caption" color="text.secondary">
@@ -234,7 +234,7 @@ function ErrorsPanel() {
           </Alert>
           <Box
             component="pre"
-            sx={{ mt: 1, p: 2, borderRadius: 2, bgcolor: 'var(--sig-surface-variant)', fontSize: 12, maxHeight: 260, overflow: 'auto', whiteSpace: 'pre-wrap' }}
+            sx={{ mt: 1, p: 2, borderRadius: 1.5, bgcolor: 'var(--sig-surface-variant)', fontSize: 12, maxHeight: 260, overflow: 'auto', whiteSpace: 'pre-wrap' }}
           >
             {draft.body}
           </Box>

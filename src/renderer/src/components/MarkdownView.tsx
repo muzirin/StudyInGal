@@ -25,7 +25,7 @@ export function MarkdownView({ children, compact = false, fontSize }: Props) {
         '& pre': {
           bgcolor: 'var(--sig-surface-variant)',
           p: 1.5,
-          borderRadius: 2,
+          borderRadius: 1.5,
           overflowX: 'auto',
           fontSize: '0.88em'
         },

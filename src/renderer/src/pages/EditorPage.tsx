@@ -150,7 +150,7 @@ export function EditorPage() {
             minHeight: 420,
             resize: 'vertical',
             p: 2,
-            borderRadius: 3,
+            borderRadius: 2,
             border: '1px solid',
             borderColor: 'divider',
             bgcolor: 'var(--sig-surface-variant)',
@@ -162,7 +162,7 @@ export function EditorPage() {
           }}
         />
         {preview ? (
-          <Box sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', overflow: 'auto', maxHeight: 720 }}>
+          <Box sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'auto', maxHeight: 720 }}>
             <MarkdownView>{content}</MarkdownView>
           </Box>
         ) : null}

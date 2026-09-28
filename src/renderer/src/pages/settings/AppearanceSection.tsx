@@ -92,13 +92,13 @@ export function AppearanceSection() {
 
           <Box sx={{ maxWidth: 360 }}>
             <Typography variant="caption" color="text.secondary">
-              圆角 {theme.radius}px
+              圆角 {theme.radius}（约 {theme.radius * 2}px）
             </Typography>
             <Slider
               size="small"
               min={0}
-              max={28}
-              value={theme.radius}
+              max={14}
+              value={Math.min(14, theme.radius)}
               onChange={(_event, value) => void patchSettings({ theme: { ...theme, radius: value as number } })}
             />
           </Box>
