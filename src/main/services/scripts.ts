@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { JsonStore } from '../lib/jsonStore'
 import { dataDir } from '../lib/paths'
 import { newId } from '../lib/util'
+import { normalizeScript, normalizeScripts } from '../lib/normalizeScript'
 import { SCRIPTS_FILE } from '@shared/constants'
 import type { DialogueLine, DialogueSpeaker, GalScript } from '@shared/types'
 
@@ -11,11 +12,12 @@ export const EXAMPLE_SOURCE_ID = '__example__'
 const EXAMPLE_CHARACTER_ID = 'char_sakura'
 
 export function listScripts(): GalScript[] {
-  return store.read().sort((a, b) => b.updatedAt - a.updatedAt)
+  return normalizeScripts(store.read()).sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
 export function getScript(id: string): GalScript | null {
-  return store.read().find((item) => item.id === id) ?? null
+  const found = store.read().find((item) => item.id === id)
+  return found ? normalizeScript(found) : null
 }
 
 export function saveScript(input: Partial<GalScript> & { id?: string }): GalScript {

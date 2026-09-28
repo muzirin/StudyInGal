@@ -230,9 +230,9 @@ export function GalgamePage() {
                     <Chip size="small" label={`${script.lines.length} 行`} />
                     <Chip
                       size="small"
-                      color={script.questions.length > 0 ? 'primary' : 'default'}
-                      variant={script.questions.length > 0 ? 'filled' : 'outlined'}
-                      label={script.questions.length > 0 ? `题 ${script.questions.length}` : '无题目'}
+                      color={(script.questions ?? []).length > 0 ? 'primary' : 'default'}
+                      variant={(script.questions ?? []).length > 0 ? 'filled' : 'outlined'}
+                      label={(script.questions ?? []).length > 0 ? `题 ${(script.questions ?? []).length}` : '无题目'}
                     />
                     {script.sourceId === '__example__' ? <Chip size="small" color="secondary" label="示例" /> : null}
                     <Chip size="small" variant="outlined" label={script.model ?? '未知模型'} />
@@ -274,7 +274,7 @@ export function GalgamePage() {
                         Markdown
                       </Button>
                     </Tooltip>
-                    {script.questions.length === 0 ? (
+                    {(script.questions ?? []).length === 0 ? (
                       <Button
                         size="small"
                         variant="outlined"
