@@ -3,6 +3,7 @@ import { Alert, Box, Button, Stack, Typography } from '@mui/material'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
 import { toAssetUrl } from '../lib/assets'
+import { useCharacterSprite } from '../lib/bundledAssets'
 import type { Character } from '@shared/types'
 
 interface Props {
@@ -134,8 +135,7 @@ export function Live2DStage({ character, height = 320, showControls = true, bare
     }
   }, [modelPath, live2dEnabled, coreUrl, height, stageScale, stageX, stageY, stageOpacity])
 
-  const sprite =
-    character?.sprites?.find((item) => item.emotion === emotion)?.path ?? character?.sprites?.[0]?.path ?? null
+  const sprite = useCharacterSprite(character, emotion)
   const showFallback = status !== 'ready'
 
   return (

@@ -40,6 +40,18 @@ npm run build:win    # 打包 Windows
   6. `renderer/src/pages/<X>Page.tsx` 做界面，并在 `modules/registry.tsx` 注册
 - 数据持久化使用 `main/lib/jsonStore.ts`，位于 `app.getPath('userData')/data`。
 
+## 内置开源素材
+
+- 素材放在 `resources/assets/`（`backgrounds/`、`sprites/`、`manifest.json`、`CREDITS.md`），
+  打包时通过 electron-builder 的 `extraResources` 复制到 `process.resourcesPath/assets`。
+- 主进程 `services/bundledAssets.ts` 负责解析路径并暴露 `assets:list`；
+  渲染进程用 `lib/bundledAssets.ts` 的 `useBundledAssets/useCharacterSprite`（带缓存与回退）。
+- 本机绝对路径**不能**直接当 `<img src>` 用，必须经 `lib/assets.ts` 的 `toAssetUrl()` 转成 `sigasset://` 协议地址
+  （主进程 `protocol.handle('sigasset', ...)` 负责读文件）。
+- 重新生成素材：`node scripts/build-assets.mjs <源目录>`（源目录需含 `sprites-set1/` 与 `backgrounds/`）。
+  需要联网抓 CC0 背景时用 `node scripts/fetch-commons-backgrounds.mjs`。
+
+
 ## 调试
 
 - 渲染进程错误会通过 `ErrorBoundary` 与 `errors:capture` 记录，可在「开发者模式 → 错误与反馈」查看。

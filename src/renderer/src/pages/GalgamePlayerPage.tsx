@@ -41,6 +41,7 @@ import { useAppStore } from '../state/appStore'
 import { EmptyState, Section } from '../components/Section'
 import { buildScenes } from '../lib/scenes'
 import { toAssetUrl } from '../lib/assets'
+import { useCharacterSprite } from '../lib/bundledAssets'
 import type { ArchiveSave, Character, GalScript } from '@shared/types'
 
 const EMOTION_EMOJI: Record<string, string> = {
@@ -168,10 +169,7 @@ export function GalgamePlayerPage() {
       .catch(() => undefined)
   }, [index, script, save?.id])
 
-  const sprite = useMemo(() => {
-    if (!character || !line) return null
-    return character.sprites.find((item) => item.emotion === line.emotion)?.path ?? character.sprites[0]?.path ?? null
-  }, [character, line])
+  const sprite = useCharacterSprite(character, line?.emotion ?? 'neutral')
 
   const speakLine = (text: string): void => {
     if (!('speechSynthesis' in window)) return

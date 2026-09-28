@@ -42,41 +42,23 @@ import { Live2DStage } from '../components/Live2DStage'
 import { MarkdownView } from '../components/MarkdownView'
 import { dayBucket, formatRelative } from '../lib/format'
 import { toAssetUrl } from '../lib/assets'
+import { useCharacterSprite } from '../lib/bundledAssets'
 import { NAV_GROUPS, MODULES } from '../modules/registry'
 import { GITHUB_URL } from '@shared/constants'
-import type { Character, CustomScene, HistoryEntry, HistoryKind } from '@shared/types'
-
-import sakuraPath from '../assets/scenes/sakura-path.svg'
-import labScene from '../assets/scenes/lab.svg'
-import classroomDusk from '../assets/scenes/classroom-dusk.svg'
-import libraryNight from '../assets/scenes/library-night.svg'
-import rooftopStars from '../assets/scenes/rooftop-stars.svg'
+import type { BundledAssets, Character, CustomScene, HistoryEntry, HistoryKind } from '@shared/types'
 
 interface SceneDef {
   id: string
   name: string
   url: string
-  from: number
-  to: number
   custom?: boolean
 }
 
-/** 内置场景背景（程序化生成，无版权风险）。from/to 是「按时间自动切换」用的时段。 */
-const BUILTIN_SCENES: SceneDef[] = [
-  { id: 'sakura-path', name: '樱花道 · 清晨', url: sakuraPath, from: 5, to: 11 },
-  { id: 'lab', name: '实验室 · 白天', url: labScene, from: 11, to: 17 },
-  { id: 'classroom-dusk', name: '黄昏教室', url: classroomDusk, from: 17, to: 20 },
-  { id: 'library-night', name: '夜晚图书馆', url: libraryNight, from: 20, to: 24 },
-  { id: 'rooftop-stars', name: '星空天台', url: rooftopStars, from: 0, to: 5 }
-]
-
-function sceneForNow(scenes: SceneDef[]): SceneDef {
+/** 按当前时段在场景列表里轮换（不使用随机，保证同一天内稳定）。 */
+function sceneForNow(scenes: SceneDef[]): SceneDef | null {
+  if (scenes.length === 0) return null
   const hour = new Date().getHours()
-  return (
-    scenes.find((scene) => !scene.custom && hour >= scene.from && hour < scene.to) ??
-    scenes.find((scene) => scene.id === 'classroom-dusk') ??
-    scenes[0]
-  )
+  return scenes[Math.floor(hour / 4) % scenes.length]
 }
 
 const HISTORY_FILTERS: { id: 'all' | HistoryKind; label: string }[] = [
@@ -134,6 +116,7 @@ export function HomePage() {
   const [panel, setPanel] = useState<'nav' | 'recent' | null>(null)
   const [counts, setCounts] = useState({ paper: 0, textbook: 0, saves: 0, scripts: 0 })
   const [examplesAdded, setExamplesAdded] = useState(false)
+  const [bundled, setBundled] = useState<BundledAssets>({ backgrounds: [], sprites: [], defaultSprite: null })
 
   const companion = useMemo(
     () =>
@@ -145,16 +128,19 @@ export function HomePage() {
   )
 
   const scenes = useMemo<SceneDef[]>(() => {
+    const builtin: SceneDef[] = bundled.backgrounds.map((background) => ({
+      id: background.id,
+      name: background.name,
+      url: toAssetUrl(background.path) ?? background.path
+    }))
     const custom: SceneDef[] = (settings?.home?.customScenes ?? []).map((scene: CustomScene) => ({
       id: scene.id,
       name: scene.name,
       url: toAssetUrl(scene.path) ?? scene.path,
-      from: -1,
-      to: -1,
       custom: true
     }))
-    return [...BUILTIN_SCENES, ...custom]
-  }, [settings?.home?.customScenes])
+    return [...builtin, ...custom]
+  }, [bundled.backgrounds, settings?.home?.customScenes])
 
   const activeScene = useMemo(() => {
     if (settings?.home?.autoScene !== false) return sceneForNow(scenes)
@@ -167,14 +153,16 @@ export function HomePage() {
 
   useEffect(() => {
     void (async () => {
-      const [characterList, saves, papers, textbooks, scripts] = await Promise.all([
+      const [characterList, saves, papers, textbooks, scripts, assets] = await Promise.all([
         api.characters.list().catch(() => []),
         api.archive.list().catch(() => []),
         api.library.snapshot('paper').catch(() => null),
         api.library.snapshot('textbook').catch(() => null),
-        api.gal.listScripts().catch(() => [])
+        api.gal.listScripts().catch(() => []),
+        api.assets.list().catch(() => ({ backgrounds: [], sprites: [], defaultSprite: null }))
       ])
       setCharacters(characterList)
+      setBundled(assets)
       setCounts({
         paper: papers?.nodes.length ?? 0,
         textbook: textbooks?.nodes.length ?? 0,
@@ -234,15 +222,24 @@ export function HomePage() {
       multi: true
     })
     if (paths.length === 0) return
+    await attachScenes(paths)
+  }
+
+  const attachScenes = async (paths: string[]): Promise<void> => {
     const created: CustomScene[] = paths.map((path) => ({
       id: `scene_${Math.random().toString(36).slice(2, 8)}`,
       name: path.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, '') ?? '自定义背景',
       path
     }))
     await patchSettings({
-      home: { ...(settings?.home as object), customScenes: [...(settings?.home?.customScenes ?? []), ...created], sceneId: created[0].id, autoScene: false }
+      home: {
+        ...(settings?.home as object),
+        customScenes: [...(settings?.home?.customScenes ?? []), ...created],
+        sceneId: created[0].id,
+        autoScene: false
+      }
     })
-    toast('success', `已添加 ${created.length} 张自定义背景`)
+    toast('success', `已导入 ${created.length} 张场景（本地文件，不复制）`)
   }
 
   const removeCustomScene = async (id: string): Promise<void> => {
@@ -276,10 +273,7 @@ export function HomePage() {
     return true
   })
 
-  const sprite = useMemo(
-    () => companion?.sprites?.find((item) => item.emotion === 'happy')?.path ?? companion?.sprites?.[0]?.path ?? null,
-    [companion]
-  )
+  const sprite = useCharacterSprite(companion, 'happy')
 
   /* --------------------------------- 面板内容 -------------------------------- */
 
@@ -463,23 +457,34 @@ export function HomePage() {
   return (
     <Box sx={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
       {/* 场景背景 */}
-      <Box
-        component="img"
-        src={activeScene.url}
-        alt={activeScene.name}
-        onClick={() => setBubble(QUIPS[Math.floor(Math.random() * QUIPS.length)])}
-        title="点击场景让伴学娘说句话"
-        sx={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          cursor: 'pointer',
-          transition: 'transform 10s ease',
-          '&:hover': { transform: 'scale(1.02)' }
-        }}
-      />
+      {activeScene ? (
+        <Box
+          component="img"
+          src={activeScene.url}
+          alt={activeScene.name}
+          onClick={() => setBubble(QUIPS[Math.floor(Math.random() * QUIPS.length)])}
+          title="点击场景让伴学娘说句话"
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            cursor: 'pointer',
+            transition: 'transform 10s ease',
+            '&:hover': { transform: 'scale(1.02)' }
+          }}
+        />
+      ) : (
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'linear-gradient(160deg, rgba(46,26,52,1) 0%, rgba(24,16,34,1) 55%, rgba(14,10,20,1) 100%)'
+          }}
+        />
+      )}
       <Box
         sx={{
           position: 'absolute',
@@ -495,9 +500,9 @@ export function HomePage() {
         sx={{
           position: 'absolute',
           left: '50%',
-          bottom: { xs: 150, md: 158 },
+          bottom: { xs: 168, md: 178 },
           transform: 'translateX(-50%)',
-          height: { xs: '46%', md: '62%' },
+          height: { xs: '42%', md: '56%' },
           minWidth: 180,
           display: 'grid',
           placeItems: 'end center',
@@ -536,7 +541,7 @@ export function HomePage() {
         <Chip
           size="small"
           icon={<TheaterComedyRoundedIcon sx={{ fontSize: 15 }} />}
-          label={activeScene.name}
+          label={activeScene?.name ?? '未选择场景'}
           onClick={() => setSceneBarOpen((value) => !value)}
           sx={{ ...GLASS }}
         />
@@ -591,24 +596,27 @@ export function HomePage() {
               key={scene.id}
               size="small"
               label={scene.name}
-              color={scene.id === activeScene.id ? 'primary' : 'default'}
+              color={scene.id === activeScene?.id ? 'primary' : 'default'}
               onDelete={scene.custom ? () => void removeCustomScene(scene.id) : undefined}
               onClick={() => void patchSettings({ home: { ...(settings?.home as object), sceneId: scene.id, autoScene: false } })}
-              sx={scene.id === activeScene.id ? undefined : { color: '#fff', borderColor: 'rgba(255,255,255,0.35)', bgcolor: 'rgba(255,255,255,0.1)' }}
+              sx={scene.id === activeScene?.id ? undefined : { color: '#fff', borderColor: 'rgba(255,255,255,0.35)', bgcolor: 'rgba(255,255,255,0.1)' }}
             />
           ))}
-          <Chip size="small" icon={<AddPhotoAlternateRoundedIcon sx={{ fontSize: 15 }} />} label="添加本地背景" onClick={() => void addCustomScene()} sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)', bgcolor: 'rgba(255,255,255,0.1)' }} />
+          <Chip size="small" icon={<AddPhotoAlternateRoundedIcon sx={{ fontSize: 15 }} />} label="导入场景" onClick={() => void addCustomScene()} sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)', bgcolor: 'rgba(255,255,255,0.1)' }} />
           <Chip
             size="small"
             icon={<OpenInNewRoundedIcon sx={{ fontSize: 15 }} />}
-            label="开源素材库"
+            label="更多开源素材"
             onClick={() => void api.app.openExternal(`${GITHUB_URL}/blob/main/docs/assets.md`)}
             sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)', bgcolor: 'rgba(255,255,255,0.1)' }}
           />
           <Chip
             size="small"
             label="恢复自动"
-            onClick={() => void patchSettings({ home: { ...(settings?.home as object), sceneId: sceneForNow(scenes).id, autoScene: true } })}
+            onClick={() => {
+              const next = sceneForNow(scenes)
+              void patchSettings({ home: { ...(settings?.home as object), ...(next ? { sceneId: next.id } : {}), autoScene: true } })
+            }}
             sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.4)', bgcolor: 'rgba(255,255,255,0.1)' }}
           />
           <IconButton size="small" sx={{ color: '#fff' }} onClick={() => setSceneBarOpen(false)}>

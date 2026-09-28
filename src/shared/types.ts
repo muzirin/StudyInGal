@@ -460,6 +460,26 @@ export interface CustomScene {
   path: string
 }
 
+export interface BundledBackground {
+  id: string
+  name: string
+  file: string
+  path: string
+}
+
+export interface BundledSprite {
+  id: string
+  name: string
+  file: string
+  path: string
+}
+
+export interface BundledAssets {
+  backgrounds: BundledBackground[]
+  sprites: BundledSprite[]
+  defaultSprite: string | null
+}
+
 export type HistoryKind = 'paper' | 'textbook' | 'script' | 'save' | 'tool' | 'action'
 
 export interface HistoryEntry {

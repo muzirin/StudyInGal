@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "defaultSprite": "sakura",
+  "backgrounds": [
+    {
+      "id": "bathroom",
+      "name": "浴室",
+      "file": "backgrounds/bathroom.jpg"
+    },
+    {
+      "id": "dining-kitchen",
+      "name": "厨房 · 餐厅",
+      "file": "backgrounds/dining-kitchen.jpg"
+    },
+    {
+      "id": "dining",
+      "name": "餐厅",
+      "file": "backgrounds/dining.jpg"
+    },
+    {
+      "id": "entrance",
+      "name": "玄关",
+      "file": "backgrounds/entrance.jpg"
+    },
+    {
+      "id": "hallway",
+      "name": "走廊",
+      "file": "backgrounds/hallway.jpg"
+    },
+    {
+      "id": "kitchen",
+      "name": "厨房",
+      "file": "backgrounds/kitchen.jpg"
+    },
+    {
+      "id": "lounge",
+      "name": "客厅",
+      "file": "backgrounds/lounge.jpg"
+    },
+    {
+      "id": "master-bedroom",
+      "name": "主卧",
+      "file": "backgrounds/master-bedroom.jpg"
+    },
+    {
+      "id": "outside1",
+      "name": "屋外 · 白天",
+      "file": "backgrounds/outside1.jpg"
+    },
+    {
+      "id": "outside2",
+      "name": "屋外 · 傍晚",
+      "file": "backgrounds/outside2.jpg"
+    },
+    {
+      "id": "single-bedroom",
+      "name": "次卧",
+      "file": "backgrounds/single-bedroom.jpg"
+    }
+  ],
+  "sprites": [
+    {
+      "id": "sakura",
+      "name": "小樱 · 学姐",
+      "file": "sprites/sakura.png"
+    },
+    {
+      "id": "yuki",
+      "name": "雪见 · 学妹",
+      "file": "sprites/yuki.png"
+    },
+    {
+      "id": "rin",
+      "name": "凛 · 同学",
+      "file": "sprites/rin.png"
+    },
+    {
+      "id": "kaede",
+      "name": "枫 · 班长",
+      "file": "sprites/kaede.png"
+    },
+    {
+      "id": "aoi",
+      "name": "葵 · 学妹",
+      "file": "sprites/aoi.png"
+    },
+    {
+      "id": "hinata",
+      "name": "日向 · 同桌",
+      "file": "sprites/hinata.png"
+    },
+    {
+      "id": "mio",
+      "name": "澪 · 学姐",
+      "file": "sprites/mio.png"
+    },
+    {
+      "id": "sora",
+      "name": "空 · 同学",
+      "file": "sprites/sora.png"
+    }
+  ]
+}

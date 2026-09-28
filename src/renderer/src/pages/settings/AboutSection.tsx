@@ -77,8 +77,12 @@ export function AboutSection() {
 
       <Section title="开源许可" subtitle="GPL-3.0-or-later">
         <Box sx={{ px: 2, pb: 2 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             本软件以 GPL-3.0 许可发布；「论文转 Galgame」的产品灵感来自 Nova42x/paper2galgame，与此处的实现相互独立。
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+            内置素材署名：场景背景 by <strong>spiral atlas</strong>（CC-BY 3.0）· 立绘 by <strong>madameberry</strong>（CC0）。
+            完整清单见 resources/assets/CREDITS.md。
           </Typography>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <Button size="small" variant="contained" startIcon={<ScienceRoundedIcon />} onClick={() => void api.app.openExternal(GITHUB_URL)}>
@@ -89,6 +93,12 @@ export function AboutSection() {
             </Button>
             <Button size="small" variant="outlined" onClick={() => void api.app.openExternal(`${GITHUB_URL}/releases`)}>
               更新日志
+            </Button>
+            <Button size="small" variant="outlined" onClick={() => void api.app.openExternal(`${GITHUB_URL}/blob/main/docs/assets.md`)}>
+              素材来源
+            </Button>
+            <Button size="small" variant="outlined" onClick={() => void api.app.openExternal(`${GITHUB_URL}/blob/main/resources/assets/CREDITS.md`)}>
+              内置素材署名
             </Button>
           </Stack>
         </Box>

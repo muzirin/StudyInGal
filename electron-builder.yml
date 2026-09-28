@@ -15,6 +15,10 @@ files:
 asarUnpack:
   - resources/**
 
+extraResources:
+  - from: resources/assets
+    to: assets
+
 win:
   target:
     - target: nsis

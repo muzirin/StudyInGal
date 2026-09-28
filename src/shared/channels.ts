@@ -148,6 +148,9 @@ export const CHANNELS = {
     addFocus: 'stats:addFocus',
     focusSummary: 'stats:focusSummary'
   },
+  assets: {
+    list: 'assets:list'
+  },
   event: 'study:event'
 } as const
 

@@ -1,7 +1,20 @@
 # 开源素材库（场景背景 / 立绘 / Live2D）
 
-StudyInGal 本身不附带第三方美术资源（`src/renderer/src/assets/scenes/*.svg` 是程序化生成的几何场景，可自由使用）。
-本文档整理**可合法获取并使用**的开源 / 免费素材来源，方便你替换主页场景与角色立绘。
+> **本项目已经内置了一套开源素材**，开箱即用：
+> - **场景背景**：`resources/assets/backgrounds/`（CC0 / CC-BY，随安装包分发）
+> - **角色立绘**：`resources/assets/sprites/`（CC0，由开源分层素材合成）
+> - 授权与署名见 [`resources/assets/CREDITS.md`](../resources/assets/CREDITS.md)。
+>
+> 想换成自己喜欢的素材？见下面各节，或直接在应用里：
+> 主页 → 左上角场景名 → **「导入场景」**（多选本地图片，立即生效）；
+> 角色管理 → 编辑角色 → **「内置素材」**页签可一键套用内置立绘。
+>
+> 重新生成内置素材（需要先自行下载素材到源目录）：
+> ```bash
+> node scripts/fetch-commons-backgrounds.mjs   # 从 Wikimedia 抓 CC0/CC-BY 背景（可选）
+> node scripts/build-assets.mjs <源目录>        # 整理/合成为 resources/assets
+> ```
+
 
 > ⚠️ **务必逐个确认授权**：下面标注的是来源站点与常见授权，具体以每个素材页面的 License 声明为准。
 > 尤其注意：网盘 / GitHub 上的「Live2D 模型合集」常混入**未授权的动漫角色模型**（如某些动画角色），

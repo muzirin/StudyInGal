@@ -154,6 +154,9 @@ export const api: StudyApi = {
     addFocus: (input) => invoke(CHANNELS.stats.addFocus, input),
     focusSummary: () => invoke(CHANNELS.stats.focusSummary)
   },
+  assets: {
+    list: () => invoke(CHANNELS.assets.list)
+  },
   events: {
     subscribe: (listener) => window.study.on(listener as (event: unknown) => void)
   }

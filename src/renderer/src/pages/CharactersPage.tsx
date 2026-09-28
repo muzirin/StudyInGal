@@ -34,8 +34,9 @@ import RecordVoiceOverRoundedIcon from '@mui/icons-material/RecordVoiceOverRound
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
 import { EmptyState, Section } from '../components/Section'
+import { toAssetUrl } from '../lib/assets'
 import { GITHUB_URL } from '@shared/constants'
-import type { Character, CharacterSprite } from '@shared/types'
+import type { BundledSprite, Character, CharacterSprite } from '@shared/types'
 
 const DEFAULT_VOICE: Character['voice'] = { providerId: null, voiceId: '', rate: 1, pitch: 1 }
 
@@ -55,7 +56,7 @@ const EMPTY: Partial<Character> = {
 
 const EMOTIONS = ['neutral', 'happy', 'thinking', 'surprised', 'serious', 'shy', 'excited', 'sad', 'angry']
 
-const TAB_LABELS = ['基础设定', '标签与问候', '立绘', 'Live2D', '语音']
+const TAB_LABELS = ['基础设定', '标签与问候', '立绘', 'Live2D', '语音', '内置素材']
 
 export function CharactersPage() {
   const toast = useAppStore((state) => state.toast)
@@ -64,11 +65,16 @@ export function CharactersPage() {
   const [tab, setTab] = useState(0)
   const [tagInput, setTagInput] = useState('')
   const [query, setQuery] = useState('')
+  const [bundledSprites, setBundledSprites] = useState<BundledSprite[]>([])
 
   const refresh = async (): Promise<void> => setCharacters(await api.characters.list())
 
   useEffect(() => {
     void refresh()
+    void api.assets
+      .list()
+      .then((assets) => setBundledSprites(assets.sprites))
+      .catch(() => undefined)
   }, [])
 
   const filtered = useMemo(() => {
@@ -342,8 +348,61 @@ export function CharactersPage() {
                 </Stack>
               ))}
               <Button startIcon={<AddRoundedIcon />} onClick={() => void addSprite()}>
-                添加立绘
+                添加本机立绘
               </Button>
+            </Stack>
+          ) : null}
+
+          {tab === 5 ? (
+            <Stack spacing={1.5} sx={{ mt: 1 }}>
+              <Typography variant="subtitle2" fontWeight={700}>
+                内置开源立绘
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                随应用分发的开源素材（CC0 / CC-BY，见「关于 → 素材来源」）。点击即可加入当前角色。
+              </Typography>
+              {bundledSprites.length === 0 ? (
+                <Alert severity="info" icon={false}>
+                  未检测到内置素材。若你是从源码运行，请先执行 <code>node scripts/build-assets.mjs</code>。
+                </Alert>
+              ) : (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 1.5 }}>
+                  {bundledSprites.map((sprite) => (
+                    <Card
+                      key={sprite.id}
+                      elevation={0}
+                      onClick={() => {
+                        const sprites = [...(draft?.sprites ?? [])]
+                        if (!sprites.some((item) => item.path === sprite.path)) {
+                          sprites.push({ emotion: 'neutral', path: sprite.path })
+                        }
+                        setDraft({ ...draft, sprites })
+                      }}
+                      sx={{ cursor: 'pointer', '&:hover': { borderColor: 'primary.main' } }}
+                    >
+                      <Box
+                        sx={{
+                          height: 150,
+                          display: 'grid',
+                          placeItems: 'end center',
+                          bgcolor: 'var(--sig-surface-variant)',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src={toAssetUrl(sprite.path)}
+                          alt={sprite.name}
+                          sx={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
+                        />
+                      </Box>
+                      <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', py: 0.75 }}>
+                        {sprite.name}
+                      </Typography>
+                    </Card>
+                  ))}
+                </Box>
+              )}
             </Stack>
           ) : null}
 

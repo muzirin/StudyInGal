@@ -25,6 +25,7 @@ import * as history from '../services/history'
 import * as notes from '../services/notes'
 import * as conversations from '../services/conversations'
 import * as focus from '../services/focus'
+import * as bundledAssets from '../services/bundledAssets'
 import { refreshGlobalShortcut, refreshTray } from '../services/tray'
 import { broadcastWindowState } from '../window'
 
@@ -524,6 +525,9 @@ const handlers: Record<string, Handler> = {
   /* ---------------------------------- stats --------------------------------- */
   [CHANNELS.stats.addFocus]: (payload) => focus.addFocus(payload as never),
   [CHANNELS.stats.focusSummary]: () => focus.summary(),
+
+  /* --------------------------------- assets --------------------------------- */
+  [CHANNELS.assets.list]: () => bundledAssets.listBundledAssets(),
 
   /* ---------------------------------- sync ---------------------------------- */
   [CHANNELS.sync.status]: () => ({

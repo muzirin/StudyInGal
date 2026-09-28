@@ -3,6 +3,7 @@ import type {
   AppInfo,
   AppSettings,
   ArchiveSave,
+  BundledAssets,
   CapturedError,
   ChapterRef,
   Character,
@@ -216,6 +217,9 @@ export interface StudyApi {
   stats: {
     addFocus(input: { minutes: number; kind?: 'work' | 'break' }): Promise<FocusSummary>
     focusSummary(): Promise<FocusSummary>
+  }
+  assets: {
+    list(): Promise<BundledAssets>
   }
   events: {
     subscribe(listener: (event: import('./channels').StudyEvent) => void): () => void
