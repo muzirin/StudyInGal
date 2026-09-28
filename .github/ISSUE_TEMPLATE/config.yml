@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用问题与讨论
+    url: https://github.com/muzirin/StudyInGal/discussions
+    about: 不确定是不是 Bug？来 Discussions 聊聊。
+  - name: 云盘 / 夸克网盘说明
+    url: https://github.com/muzirin/StudyInGal/blob/main/docs/cloud-quark.md
+    about: 夸克网盘适配器的限制与 Cookie 获取方式。
