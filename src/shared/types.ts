@@ -545,6 +545,10 @@ export interface AppSettings {
     proactivePrompt: string
     showBubbles: boolean
   }
+  home: {
+    sceneId: string
+    autoScene: boolean
+  }
   live2d: {
     enabled: boolean
     modelPath: string | null

@@ -137,6 +137,7 @@ export interface StudyApi {
     deleteScript(id: string): Promise<void>
     exportSave(scriptId: string, mountId: string | null): Promise<ArchiveSave>
     exportMarkdown(id: string, target: string): Promise<{ path: string; lines: number }>
+    seedExamples(force?: boolean): Promise<{ added: number; total: number }>
   }
   archive: {
     list(): Promise<ArchiveSave[]>

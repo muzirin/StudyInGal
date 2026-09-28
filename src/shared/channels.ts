@@ -72,7 +72,8 @@ export const CHANNELS = {
     saveScript: 'gal:saveScript',
     deleteScript: 'gal:deleteScript',
     exportSave: 'gal:exportSave',
-    exportMarkdown: 'gal:exportMarkdown'
+    exportMarkdown: 'gal:exportMarkdown',
+    seedExamples: 'gal:seedExamples'
   },
   archive: {
     list: 'archive:list',

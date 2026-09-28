@@ -14,6 +14,7 @@ import {
   Typography
 } from '@mui/material'
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded'
+import AutoStoriesRoundedIcon from '@mui/icons-material/AutoStoriesRounded'
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
 import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded'
 import SaveRoundedIcon from '@mui/icons-material/SaveRounded'
@@ -65,6 +66,12 @@ export function GalgamePage() {
 
   const selectedSource = useMemo(() => nodes.find((node) => node.id === sourceId) ?? null, [nodes, sourceId])
 
+  const seedExamples = async (): Promise<void> => {
+    const result = await api.gal.seedExamples(true)
+    toast(result.added > 0 ? 'success' : 'info', result.added > 0 ? `已添加 ${result.added} 个示例剧本` : '示例剧本已存在')
+    await refresh()
+  }
+
   const sourceTitle = useMemo(() => {
     const map = new Map<string, string>()
     for (const node of nodes) map.set(node.id, node.title)
@@ -86,8 +93,7 @@ export function GalgamePage() {
     }
   }, [scripts, query, sortBy])
 
-  const generate = async (): Promise<void> => {
-    if (!sourceId || !characterId) {
+  const generate = async (): Promise<void> => {    if (!sourceId || !characterId) {
       toast('warning', '请先选择文献和角色')
       return
     }
@@ -109,9 +115,14 @@ export function GalgamePage() {
         title="论文 / 教材 → Galgame 剧本"
         subtitle="调用你在「设置 → API 提供商」中为「剧本生产」路由配置的模型"
         action={
-          <Button variant="contained" startIcon={<AutoAwesomeRoundedIcon />} disabled={busy} onClick={() => void generate()}>
-            {busy ? '生成中…' : '生成剧本'}
-          </Button>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
+              <Button size="small" variant="outlined" startIcon={<AutoStoriesRoundedIcon />} onClick={() => void seedExamples()}>
+                添加示例剧本
+              </Button>
+              <Button variant="contained" startIcon={<AutoAwesomeRoundedIcon />} disabled={busy} onClick={() => void generate()}>
+                {busy ? '生成中…' : '生成剧本'}
+              </Button>
+            </Stack>
         }
       >
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2, p: 2 }}>
@@ -209,10 +220,14 @@ export function GalgamePage() {
                     {script.title}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" display="block" noWrap>
-                    源：{sourceTitle.get(script.sourceId) ?? '（已移除）'} · {script.sourceKind === 'textbook' ? '教材' : '论文'}
+                    源：
+                    {script.sourceId === '__example__'
+                      ? '内置示例'
+                      : `${sourceTitle.get(script.sourceId) ?? '（已移除）'} · ${script.sourceKind === 'textbook' ? '教材' : '论文'}`}
                   </Typography>
                   <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ my: 1 }}>
                     <Chip size="small" label={`${script.lines.length} 行`} />
+                    {script.sourceId === '__example__' ? <Chip size="small" color="secondary" label="示例" /> : null}
                     <Chip size="small" variant="outlined" label={script.model ?? '未知模型'} />
                   </Stack>
                   <Typography variant="caption" color="text.disabled" display="block">

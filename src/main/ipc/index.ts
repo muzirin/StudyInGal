@@ -335,6 +335,7 @@ const handlers: Record<string, Handler> = {
   [CHANNELS.gal.deleteScript]: (payload) => {
     scripts.deleteScript(asString(payload.id))
   },
+  [CHANNELS.gal.seedExamples]: (payload) => scripts.seedExampleScripts(payload.force === true),
   [CHANNELS.gal.exportSave]: async (payload) => {    const script = scripts.getScript(asString(payload.scriptId))
     if (!script) throw new Error('剧本不存在')
     const save = archive.upsertSave({

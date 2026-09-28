@@ -211,5 +211,7 @@ export function pathToModuleId(pathname: string): string {
   }
   const direct = MODULES.find((item) => item.path === pathname && item.path !== '/')
   if (direct) return direct.id
+  const nested = MODULES.find((item) => item.path !== '/' && pathname.startsWith(`${item.path}/`))
+  if (nested) return nested.id
   return 'dashboard'
 }

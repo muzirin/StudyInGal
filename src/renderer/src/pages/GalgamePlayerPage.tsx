@@ -66,6 +66,7 @@ export function GalgamePlayerPage() {
   const { scriptId = '' } = useParams<{ scriptId: string }>()
   const navigate = useNavigate()
   const toast = useAppStore((state) => state.toast)
+  const setCrumb = useAppStore((state) => state.setCrumb)
   const compact = useMediaQuery('(max-width: 1100px)')
 
   const [script, setScript] = useState<GalScript | null>(null)
@@ -91,6 +92,7 @@ export function GalgamePlayerPage() {
       ])
       if (cancelled) return
       setScript(loadedScript)
+      if (loadedScript) setCrumb({ label: loadedScript.title, hint: 'Galgame 剧本' })
       const found = characters.find((item) => item.id === loadedScript?.characterId) ?? characters[0] ?? null
       setCharacter(found)
       const existing = saves.find((item) => item.scriptId === scriptId) ?? null

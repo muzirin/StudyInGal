@@ -83,6 +83,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
     proactivePrompt: '请根据我最近的学习进度，主动和我聊一句，鼓励或提醒我。',
     showBubbles: true
   },
+  home: {
+    sceneId: 'classroom-dusk',
+    autoScene: true
+  },
   live2d: {
     enabled: false,
     modelPath: null,

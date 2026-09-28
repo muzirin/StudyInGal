@@ -8,6 +8,7 @@ import { killAllTerminals } from './services/terminal'
 import { captureError } from './services/errors'
 import { startScheduler, stopScheduler } from './services/scheduler'
 import { disposeTray, refreshGlobalShortcut, refreshTray } from './services/tray'
+import { seedExampleScripts } from './services/scripts'
 
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
@@ -45,6 +46,14 @@ if (!gotLock) {
     startScheduler()
     refreshTray()
     refreshGlobalShortcut()
+
+    // 首次运行时写入内置示例剧本，方便直接体验 Galgame 播放器
+    try {
+      const seeded = seedExampleScripts(false)
+      if (seeded.added > 0) console.info(`[StudyInGal] 已写入 ${seeded.added} 个内置示例剧本`)
+    } catch (error) {
+      console.warn('[StudyInGal] 写入示例剧本失败：', (error as Error).message)
+    }
 
     const window = createWindow()
     if (getSettings().developer.openDevToolsOnStart) {

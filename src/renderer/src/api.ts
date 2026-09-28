@@ -78,7 +78,8 @@ export const api: StudyApi = {
     saveScript: (script) => invoke(CHANNELS.gal.saveScript, script),
     deleteScript: (id) => invoke(CHANNELS.gal.deleteScript, { id }),
     exportSave: (scriptId, mountId) => invoke(CHANNELS.gal.exportSave, { scriptId, mountId }),
-    exportMarkdown: (id, target) => invoke(CHANNELS.gal.exportMarkdown, { id, target })
+    exportMarkdown: (id, target) => invoke(CHANNELS.gal.exportMarkdown, { id, target }),
+    seedExamples: (force) => invoke(CHANNELS.gal.seedExamples, { force })
   },
   archive: {
     list: () => invoke(CHANNELS.archive.list),

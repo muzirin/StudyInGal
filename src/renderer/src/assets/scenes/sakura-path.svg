@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#DCEFFF" />
+      <stop offset="45%" stop-color="#FFD9E6" />
+      <stop offset="100%" stop-color="#FFC9C2" />
+    </linearGradient>
+    <linearGradient id="path" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E6D3C4" />
+      <stop offset="100%" stop-color="#C9AE9C" />
+    </linearGradient>
+    <radialGradient id="canopy" cx="0.5" cy="0.4" r="0.6">
+      <stop offset="0%" stop-color="#FFD5E6" />
+      <stop offset="70%" stop-color="#FFB3D0" />
+      <stop offset="100%" stop-color="#F58BB4" />
+    </radialGradient>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#sky)" />
+  <circle cx="360" cy="210" r="110" fill="#FFFFFF" opacity="0.55" />
+
+  <!-- 远处树影 -->
+  <g fill="#F3AFCB" opacity="0.55">
+    <ellipse cx="180" cy="430" rx="170" ry="120" />
+    <ellipse cx="470" cy="400" rx="140" ry="100" />
+    <ellipse cx="1400" cy="420" rx="200" ry="130" />
+  </g>
+
+  <!-- 道路 -->
+  <path d="M0 900 L560 560 L1040 560 L1600 900 Z" fill="url(#path)" />
+  <path d="M700 900 L780 570 L880 570 L980 900 Z" fill="#EFE0D2" opacity="0.7" />
+
+  <!-- 主樱树 -->
+  <g>
+    <path d="M1200 700 l26 0 -10 -180 30 0 12 180 24 0 -6 -300 -84 0 z" fill="#6B4A3A" />
+    <ellipse cx="1210" cy="330" rx="300" ry="190" fill="url(#canopy)" />
+    <ellipse cx="1000" cy="390" rx="170" ry="120" fill="#FFC6DC" opacity="0.95" />
+    <ellipse cx="1420" cy="380" rx="180" ry="125" fill="#FFC6DC" opacity="0.95" />
+    <ellipse cx="1210" cy="230" rx="190" ry="120" fill="#FFE0EE" opacity="0.9" />
+  </g>
+
+  <!-- 第二棵树 -->
+  <g>
+    <path d="M180 720 l22 0 -8 -150 26 0 10 150 20 0 -5 -250 -70 0 z" fill="#5E4133" />
+    <ellipse cx="195" cy="400" rx="220" ry="150" fill="url(#canopy)" opacity="0.9" />
+  </g>
+
+  <!-- 花瓣 -->
+  <g fill="#FFE3F0" opacity="0.95">
+    <ellipse cx="300" cy="560" rx="12" ry="7" transform="rotate(-20 300 560)" />
+    <ellipse cx="520" cy="640" rx="10" ry="6" transform="rotate(15 520 640)" />
+    <ellipse cx="760" cy="520" rx="11" ry="6" transform="rotate(-35 760 520)" />
+    <ellipse cx="980" cy="660" rx="9" ry="5" transform="rotate(25 980 660)" />
+    <ellipse cx="1180" cy="600" rx="12" ry="7" transform="rotate(-10 1180 600)" />
+    <ellipse cx="1380" cy="700" rx="10" ry="6" transform="rotate(30 1380 700)" />
+    <ellipse cx="420" cy="740" rx="9" ry="5" transform="rotate(-25 420 740)" />
+    <ellipse cx="900" cy="780" rx="11" ry="6" transform="rotate(10 900 780)" />
+    <ellipse cx="1460" cy="540" rx="9" ry="5" transform="rotate(-15 1460 540)" />
+  </g>
+</svg>
