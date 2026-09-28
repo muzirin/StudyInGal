@@ -458,6 +458,18 @@ export function CompanionPage() {
                 )}
               </Box>
 
+              <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ px: 1.5, pt: 1 }}>
+                {[
+                  '用一句话总结核心贡献',
+                  '用生活化的类比解释一下',
+                  '列出关键公式并解释直觉',
+                  '给我出三道自测题',
+                  '这篇内容有哪些常见误区？'
+                ].map((preset) => (
+                  <Chip key={preset} size="small" variant="outlined" label={preset} clickable onClick={() => setInput(preset)} />
+                ))}
+              </Stack>
+
               <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                 <TextField
                   fullWidth

@@ -58,6 +58,17 @@ const HISTORY_ICON: Record<HistoryKind, React.ReactNode> = {
 
 const BUCKET_ORDER = ['今天', '昨天', '本周', '更早'] as const
 
+/** 点击立绘时说的随机台词（本地生成，不消耗 API 额度） */
+const QUIPS = [
+  '今天也一起加油吧～先从最容易的一小节开始！',
+  '要不要试试把这篇论文变成 Galgame？我会讲得很有趣哦。',
+  '别忘了番茄钟，专注 25 分钟就休息一下。',
+  '黑板笔记写多了就会变成自己的知识，记得「精读本章」。',
+  '课表上的下一节课准备好了吗？我可以帮你复习要点。',
+  '累了就放点白噪音，雨声最适合看书了。',
+  '有不懂的地方随时选中间问我，我一直都在。'
+]
+
 export function HomePage() {
   const theme = useTheme()
   const navigate = useNavigate()
@@ -267,7 +278,11 @@ export function HomePage() {
               </Stack>
             </Stack>
 
-            <Box sx={{ justifySelf: 'center', alignSelf: 'end', width: '100%', maxWidth: 260 }}>
+            <Box
+              onClick={() => setBubble(QUIPS[Math.floor(Math.random() * QUIPS.length)])}
+              title="点击让伴学娘说句话"
+              sx={{ justifySelf: 'center', alignSelf: 'end', width: '100%', maxWidth: 260, cursor: 'pointer' }}
+            >
               <Live2DStage character={companion} height={320} bare />
             </Box>
           </Box>

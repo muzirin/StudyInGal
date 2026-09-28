@@ -74,6 +74,7 @@ export function GalgamePlayerPage() {
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(0)
   const [auto, setAuto] = useState(false)
+  const [autoSpeak, setAutoSpeak] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
   const [sceneOpen, setSceneOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -179,6 +180,17 @@ export function GalgamePlayerPage() {
     window.speechSynthesis.speak(utterance)
   }
 
+  // 开启自动朗读后，每句台词出现时自动播放
+  useEffect(() => {
+    if (!autoSpeak || !line) return
+    if (line.speaker === 'narration') return
+    speakLine(line.text)
+    return () => {
+      window.speechSynthesis.cancel()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSpeak, line?.id])
+
   const saveLineEdit = async (): Promise<void> => {
     if (!script || !line) return
     const lines = script.lines.map((item) => (item.id === line.id ? { ...item, text: draft.trim() } : item))
@@ -219,6 +231,17 @@ export function GalgamePlayerPage() {
           </Typography>
           <Chip size="small" label={`第 ${(currentScene?.index ?? 0) + 1} 幕 / 共 ${scenes.length} 幕`} />
           <Chip size="small" variant="outlined" label={`${index + 1} / ${script.lines.length}`} />
+          <Tooltip title={autoSpeak ? '关闭自动朗读' : '开启自动朗读（每句自动播放语音）'}>
+            <Chip
+              size="small"
+              icon={<VolumeUpRoundedIcon sx={{ fontSize: 15 }} />}
+              label={autoSpeak ? '自动朗读中' : '自动朗读'}
+              color={autoSpeak ? 'primary' : 'default'}
+              variant={autoSpeak ? 'filled' : 'outlined'}
+              clickable
+              onClick={() => setAutoSpeak((value) => !value)}
+            />
+          </Tooltip>
           <Tooltip title="场景列表">
             <IconButton size="small" onClick={() => setSceneOpen(true)}>
               <MovieFilterRoundedIcon fontSize="small" />
