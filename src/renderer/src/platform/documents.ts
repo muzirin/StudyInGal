@@ -3,8 +3,9 @@
  * 支持 txt / md / tex / html 与「文件夹分册」的只读合并；PDF/DOCX 解析暂不支持。
  */
 import { Capacitor } from '@capacitor/core'
-import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
+import { Directory, Filesystem } from '@capacitor/filesystem'
 import { extname } from '@renderer/platform/path'
+import { base64ToText, textToBase64 } from './util'
 import type { ChapterRef, DocumentContent, DocumentFormat, LibraryNode, MergedDocument } from '@shared/types'
 
 export const LIBRARY_DIR = 'StudyInGal/library'
@@ -38,10 +39,30 @@ const TEXT_FORMATS: DocumentFormat[] = ['md', 'latex', 'txt', 'html']
 
 export const isReadableText = (format: DocumentFormat): boolean => TEXT_FORMATS.includes(format)
 
+const parentOf = (path: string): string => {
+  const index = path.lastIndexOf('/')
+  return index > 0 ? path.slice(0, index) : ''
+}
+
+/**
+ * 显式预建父目录。
+ * Capacitor Web 端 writeFile({ recursive: true }) 在多层路径下会用「被截断的」子路径去 mkdir，
+ * 深度为 1 时直接抛 “Cannot create Root directory”（见 @capacitor/filesystem/dist/esm/web.js）。
+ * 这里先按完整路径建目录，writeFile 便不再走那段有问题的分支；Android 端重复建目录会报错，忽略即可。
+ */
+async function ensureDirectory(path: string): Promise<void> {
+  if (!path) return
+  try {
+    await Filesystem.mkdir({ path, recursive: true })
+  } catch {
+    // 目录已存在或后端不要求预建，交给后续读写报出真实错误
+  }
+}
+
 /** 把 base64 或 Blob 结果统一成文本 */
 async function readTextFile(path: string): Promise<string> {
   const result = await Filesystem.readFile({ path })
-  if (typeof result.data === 'string') return decodeURIComponent(escape(atob(result.data)))
+  if (typeof result.data === 'string') return base64ToText(result.data)
   const blob = result.data as unknown as Blob
   return await blob.text()
 }
@@ -78,7 +99,9 @@ export async function writeDocument(node: LibraryNode, content: string, targetPa
   const path = targetPath ?? node.path
   if (node.format === 'folder' && !targetPath) throw new Error('文件夹节点需要指定要写入的章节文件')
   if (!isReadableText(detectFormat(path))) throw new Error('该格式不可直接编辑')
-  await Filesystem.writeFile({ path, data: content, encoding: Encoding.UTF8, recursive: true })
+  await ensureDirectory(parentOf(path))
+  // 统一用 base64：Web 端会忽略 encoding，若按 UTF-8 写就会与 readTextFile 的 base64 解码不对称
+  await Filesystem.writeFile({ path, data: textToBase64(content), recursive: true })
 }
 
 export async function mergeNode(node: LibraryNode): Promise<MergedDocument> {
@@ -118,6 +141,7 @@ export async function importFile(file: File, title: string): Promise<string> {
     reader.onerror = () => reject(reader.error ?? new Error('读取文件失败'))
     reader.readAsDataURL(file)
   })
+  await ensureDirectory(parentOf(target))
   await Filesystem.writeFile({ path: target, data: base64, recursive: true })
   return target
 }

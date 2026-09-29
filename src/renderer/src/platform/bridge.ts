@@ -51,9 +51,13 @@ function pickViaInput(accept: string, directory = false, multi = true): Promise<
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = accept
+    // Android 的文件选择器按 MIME 过滤，传 ".md,.tex" 这类扩展名会导致所有文件被置灰
+    // （看起来就是「选不了任何文件」）。原生端统一用 */*，导入后再按扩展名判断。
+    const native = Capacitor.isNativePlatform()
+    input.accept = native ? '*/*' : accept
     input.multiple = multi
-    if (directory) input.setAttribute('webkitdirectory', 'true')
+    // Android WebView 不支持 webkitdirectory，原生端退化为多选文件
+    if (directory && !native) input.setAttribute('webkitdirectory', 'true')
     input.style.display = 'none'
     document.body.appendChild(input)
     input.onchange = () => {
@@ -67,6 +71,13 @@ function pickViaInput(accept: string, directory = false, multi = true): Promise<
     }
     input.click()
   })
+}
+
+/** 目录选择得到的文件带 webkitRelativePath（形如 "chapters/01.md"），取首段作为文件夹名 */
+const folderName = (file: File): string => {
+  const relative = (file as File & { webkitRelativePath?: string }).webkitRelativePath ?? ''
+  const segment = relative.split('/').filter(Boolean)[0]
+  return segment ? stripExtension(segment) : ''
 }
 
 const acceptFromFilters = (filters?: { name: string; extensions: string[] }[]): string => {
@@ -211,6 +222,8 @@ const handlers: Record<string, Handler> = {
     })
   },
   [CHANNELS.dialogs.pickDirectory]: async () => {
+    // 原生端没有目录选择器（WebView 不支持 webkitdirectory），
+    // 退化为「多选文件 → 当作一个分册文件夹」。
     const files = await pickViaInput('*/*', true, true)
     if (files.length === 0) return null
     const key = `mobile-dir:${fileSeq++}`
@@ -243,62 +256,28 @@ const handlers: Record<string, Handler> = {
   [CHANNELS.library.import]: async (payload) => {
     const kind = payload.kind as 'paper' | 'textbook'
     const created: LibraryNode[] = []
+    const failed: string[] = []
     const now = Date.now()
     const paths = (payload.paths as string[]) ?? []
-    for (const path of paths) {
-      const dirFiles = dirRegistry.get(path)
-      if (dirFiles && dirFiles.length > 0) {
-        const chapters = dirFiles
-          .filter((file) => ['.md', '.markdown', '.tex', '.latex', '.txt'].includes(extname(file.name)))
-          .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN', { numeric: true }))
-        const stored: { ref: string; title: string }[] = []
-        for (const file of chapters) {
-          const ref = await docs.importFile(file, file.name)
-          stored.push({ ref, title: stripExtension(basename(file.name)) })
-        }
-        if (stored.length === 0) continue
-        const folderTitle = stripExtension(basename(dirFiles[0].webkitRelativePath || dirFiles[0].name)) || '教材文件夹'
-        created.push({
-          id: newId('node'),
-          kind,
-          title: folderTitle,
-          authors: [],
-          abstract: '',
-          tags: (payload.tags as string[]) ?? [],
-          folderId: (payload.folderId as string) ?? null,
-          seriesId: (payload.seriesId as string) ?? null,
-          categoryId: (payload.categoryId as string) ?? null,
-          path: stored[0].ref,
-          format: 'folder',
-          sizeBytes: 0,
-          createdAt: now,
-          updatedAt: now,
-          favorite: false,
-          readingProgress: 0,
-          lastOpenedAt: null,
-          ocrStatus: 'none',
-          chapters: stored.map((item, index) => ({ id: `ch-${index}`, title: item.title, path: item.ref, order: index })),
-          meta: {}
-        })
-        continue
-      }
-      const file = fileRegistry.get(path)
-      if (!file) continue
+    const tags = (payload.tags as string[]) ?? []
+    emit({ type: 'toast', payload: { severity: 'info', message: paths.length > 1 ? `正在导入 ${paths.length} 个文件…` : '正在导入…' } })
+
+    const buildNode = async (file: File, title: string, sizeBytes: number) => {
       const format = docs.detectFormat(file.name)
       const ref = await docs.importFile(file, file.name)
-      created.push({
+      const node: LibraryNode = {
         id: newId('node'),
         kind,
-        title: stripExtension(basename(file.name)),
+        title,
         authors: [],
         abstract: '',
-        tags: (payload.tags as string[]) ?? [],
+        tags,
         folderId: (payload.folderId as string) ?? null,
         seriesId: (payload.seriesId as string) ?? null,
         categoryId: (payload.categoryId as string) ?? null,
         path: ref,
         format,
-        sizeBytes: file.size,
+        sizeBytes,
         createdAt: now,
         updatedAt: now,
         favorite: false,
@@ -306,12 +285,70 @@ const handlers: Record<string, Handler> = {
         lastOpenedAt: null,
         ocrStatus: 'none',
         chapters: [],
-        meta: {}
+        meta: { sourceName: file.name }
+      }
+      created.push(node)
+      return node
+    }
+
+    for (const path of paths) {
+      try {
+        const dirFiles = dirRegistry.get(path)
+        // 原生端「导入文件夹」是多选文件：只有 1 个文件时按单篇处理
+        if (dirFiles && dirFiles.length > 1) {
+          const chapters = dirFiles
+            .filter((file) => ['.md', '.markdown', '.tex', '.latex', '.txt'].includes(extname(file.name)))
+            .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN', { numeric: true }))
+          if (chapters.length === 0) {
+            failed.push(dirFiles[0].name)
+            continue
+          }
+          const node = await buildNode(chapters[0], folderName(chapters[0]) || stripExtension(basename(chapters[0].name)) || '教材文件夹', 0)
+          node.format = 'folder'
+          node.sizeBytes = dirFiles.reduce((acc, file) => acc + file.size, 0)
+          const refs: { title: string; path: string }[] = [{ title: stripExtension(basename(chapters[0].name)), path: node.path }]
+          for (const extra of chapters.slice(1)) {
+            try {
+              const ref = await docs.importFile(extra, extra.name)
+              refs.push({ title: stripExtension(basename(extra.name)), path: ref })
+            } catch {
+              failed.push(extra.name)
+            }
+          }
+          node.chapters = refs.map((item, index) => ({ id: `${node.id}:${index}`, title: item.title, path: item.path, order: index }))
+          continue
+        }
+
+        const file = dirFiles && dirFiles.length === 1 ? dirFiles[0] : fileRegistry.get(path)
+        if (!file) {
+          failed.push(path)
+          continue
+        }
+        await buildNode(file, stripExtension(basename(file.name)), file.size)
+      } catch (error) {
+        failed.push((error as Error).message || path)
+      }
+    }
+
+    if (created.length > 0) {
+      await store.updateLibrary((db) => {
+        db[kind] = { ...db[kind], nodes: [...created, ...db[kind].nodes] }
       })
     }
-    await store.updateLibrary((db) => {
-      db[kind] = { ...db[kind], nodes: [...created, ...db[kind].nodes] }
-    })
+
+    if (failed.length > 0) {
+      emit({
+        type: 'toast',
+        payload: { severity: created.length > 0 ? 'warning' : 'error', message: `${failed.length} 个文件导入失败：${failed.slice(0, 2).join('、')}` }
+      })
+    }
+    if (created.length === 0) {
+      throw new Error(
+        failed.length > 0
+          ? `导入失败（${failed[0]}）。请确认已给应用存储权限，或换一个文件再试。`
+          : '没有选择到文件'
+      )
+    }
     return created
   },
   [CHANNELS.library.remove]: async (payload) => {

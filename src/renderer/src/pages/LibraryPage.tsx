@@ -185,33 +185,41 @@ export function LibraryPage() {
   }
 
   const importFiles = async (): Promise<void> => {
-    const paths = await api.dialogs.pickFiles({ multi: true })
-    if (paths.length === 0) return
-    const created = await api.library.import({
-      kind,
-      paths,
-      folderId: folderFilter,
-      seriesId: seriesFilter,
-      categoryId: categoryFilter,
-      tags: tagFilter ? [tagFilter] : []
-    })
-    toast(created.length > 0 ? 'success' : 'warning', `导入 ${created.length} 个文献`)
-    await load()
+    try {
+      const paths = await api.dialogs.pickFiles({ multi: true })
+      if (paths.length === 0) return
+      const created = await api.library.import({
+        kind,
+        paths,
+        folderId: folderFilter,
+        seriesId: seriesFilter,
+        categoryId: categoryFilter,
+        tags: tagFilter ? [tagFilter] : []
+      })
+      toast(created.length > 0 ? 'success' : 'warning', `导入 ${created.length} 个文献`)
+      await load()
+    } catch (error) {
+      toast('error', `导入失败：${(error as Error).message}`)
+    }
   }
 
   const importFolder = async (): Promise<void> => {
-    const directory = await api.dialogs.pickDirectory()
-    if (!directory) return
-    const created = await api.library.import({
-      kind,
-      paths: [directory],
-      folderId: folderFilter,
-      seriesId: seriesFilter,
-      categoryId: categoryFilter,
-      tags: tagFilter ? [tagFilter] : []
-    })
-    toast(created.length > 0 ? 'success' : 'warning', created.length > 0 ? '已作为分册教材导入' : '导入失败')
-    await load()
+    try {
+      const directory = await api.dialogs.pickDirectory()
+      if (!directory) return
+      const created = await api.library.import({
+        kind,
+        paths: [directory],
+        folderId: folderFilter,
+        seriesId: seriesFilter,
+        categoryId: categoryFilter,
+        tags: tagFilter ? [tagFilter] : []
+      })
+      toast(created.length > 0 ? 'success' : 'warning', created.length > 0 ? '已作为分册教材导入' : '导入失败')
+      await load()
+    } catch (error) {
+      toast('error', `导入失败：${(error as Error).message}`)
+    }
   }
 
   const createMeta = async (): Promise<void> => {
