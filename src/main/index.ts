@@ -102,10 +102,23 @@ if (!gotLock) {
         const route = process.env.SIG_CAPTURE_ROUTE
         const shoot = (): void => {
           setTimeout(() => {
-            void window.webContents
-              .capturePage()
-              .then((image) => writeFile(capturePath, image.toPNG()))
-              .catch((error: Error) => console.error('[StudyInGal] 截图失败', error.message))
+            const clickSelector = process.env.SIG_CAPTURE_CLICK
+            const clickThenCapture = clickSelector
+              ? window.webContents
+                  .executeJavaScript(
+                    `(() => { const el = document.querySelector(${JSON.stringify(clickSelector)}); if (!el) return 'not-found'; el.click(); return 'clicked' })()`
+                  )
+                  .then((result) => console.log('[StudyInGal] 点击', clickSelector, result))
+                  .catch((error: Error) => console.warn('[StudyInGal] 点击失败', error.message))
+              : Promise.resolve()
+            void clickThenCapture
+              .then(() => new Promise((resolve) => setTimeout(resolve, 700)))
+              .then(() =>
+                window.webContents
+                  .capturePage()
+                  .then((image) => writeFile(capturePath, image.toPNG()))
+                  .catch((error: Error) => console.error('[StudyInGal] 截图失败', error.message))
+              )
               .finally(() => app.exit(0))
           }, delay)
         }

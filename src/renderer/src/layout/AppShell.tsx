@@ -157,40 +157,30 @@ export function AppShell() {
     </Paper>
   )
 
-  if (immersive) {
-    // 沉浸模式：不显示任何应用外壳（标题栏 / 导航 / FAB），
-    // 由页面自己在右上角提供操作按钮与退出入口。
-    return (
-      <Box sx={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-        <Box sx={{ flexGrow: 1, minHeight: 0, position: 'relative' }}>
-          <ErrorBoundary>
-            <Outlet />
-          </ErrorBoundary>
-        </Box>
-        <CommandPalette />
-      </Box>
-    )
-  }
-
+  // 沉浸模式不再单独 return 一棵新树：那会导致页面被卸载重建
+  //（播放器的卸载清理又会把 immersive 置回 false，表现为「UI 不隐藏」）。
+  // 这里保持同一棵树，只隐藏外壳，从而保留页面状态。
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <TitleBar
-        title={crumb?.label ?? activeModule?.label ?? '总览'}
-        subtitle={crumb?.hint ?? activeModule?.feature}
-        leading={
-          compactViewport ? (
-            <IconButton className="no-drag" size="small" onClick={() => setMobileOpen(true)} aria-label="打开导航">
-              <MenuRoundedIcon fontSize="small" />
-            </IconButton>
-          ) : null
-        }
-      />
+      {!immersive ? (
+        <TitleBar
+          title={crumb?.label ?? activeModule?.label ?? '总览'}
+          subtitle={crumb?.hint ?? activeModule?.feature}
+          leading={
+            compactViewport ? (
+              <IconButton className="no-drag" size="small" onClick={() => setMobileOpen(true)} aria-label="打开导航">
+                <MenuRoundedIcon fontSize="small" />
+              </IconButton>
+            ) : null
+          }
+        />
+      ) : null}
 
       <Box sx={{ display: 'flex', flexGrow: 1, minHeight: 0 }}>
-        {!horizontal && !compactViewport && position === 'left' ? navPane : null}
+        {!immersive && !horizontal && !compactViewport && position === 'left' ? navPane : null}
 
         <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: 0, minHeight: 0 }}>
-          {horizontal ? horizontalNav : null}
+          {!immersive && horizontal ? horizontalNav : null}
           <Box
             component="main"
             sx={{
@@ -199,10 +189,10 @@ export function AppShell() {
               display: 'flex',
               flexDirection: 'column',
               minHeight: 0,
-              overflow: isHome ? 'hidden' : 'auto',
-              px: isHome ? 0 : compactViewport ? 1.5 : 3,
-              py: isHome ? 0 : compactViewport ? 1.5 : 2.5,
-              pb: isHome ? 0 : compactViewport ? 10 : 5
+              overflow: immersive || isHome ? 'hidden' : 'auto',
+              px: immersive || isHome ? 0 : compactViewport ? 1.5 : 3,
+              py: immersive || isHome ? 0 : compactViewport ? 1.5 : 2.5,
+              pb: immersive || isHome ? 0 : compactViewport ? 10 : 5
             }}
             className="sig-scroll-thin"
           >
@@ -214,7 +204,7 @@ export function AppShell() {
           </Box>
         </Box>
 
-        {!horizontal && !compactViewport && position === 'right' ? navPane : null}
+        {!immersive && !horizontal && !compactViewport && position === 'right' ? navPane : null}
       </Box>
 
       <Drawer
@@ -239,27 +229,29 @@ export function AppShell() {
 
       <CommandPalette />
 
-      <Stack
-        direction="row"
-        spacing={1}
-        sx={{ position: 'fixed', right: 24, bottom: position === 'bottom' ? 76 : 24, zIndex: theme.zIndex.speedDial }}
-      >
-        <Tooltip title="切换导航位置（设置）">
-          <Fab
-            size="small"
-            color="default"
-            onClick={() => void patchSettings({ theme: { ...(settings?.theme as object), navPosition: 'left' } })}
-            sx={{ display: { xs: 'none', md: 'flex' } }}
-          >
-            <ViewSidebarRoundedIcon fontSize="small" />
-          </Fab>
-        </Tooltip>
-        <Tooltip title="一键询问（Ctrl+Shift+K）">
-          <Fab color="primary" aria-label="一键询问" onClick={() => openAsk()}>
-            <HelpOutlineRoundedIcon />
-          </Fab>
-        </Tooltip>
-      </Stack>
+      {!immersive ? (
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ position: 'fixed', right: 24, bottom: position === 'bottom' ? 76 : 24, zIndex: theme.zIndex.speedDial }}
+        >
+          <Tooltip title="切换导航位置（设置）">
+            <Fab
+              size="small"
+              color="default"
+              onClick={() => void patchSettings({ theme: { ...(settings?.theme as object), navPosition: 'left' } })}
+              sx={{ display: { xs: 'none', md: 'flex' } }}
+            >
+              <ViewSidebarRoundedIcon fontSize="small" />
+            </Fab>
+          </Tooltip>
+          <Tooltip title="一键询问（Ctrl+Shift+K）">
+            <Fab color="primary" aria-label="一键询问" onClick={() => openAsk()}>
+              <HelpOutlineRoundedIcon />
+            </Fab>
+          </Tooltip>
+        </Stack>
+      ) : null}
     </Box>
   )
 }

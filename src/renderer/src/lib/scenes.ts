@@ -8,6 +8,7 @@ export interface Scene {
 }
 
 const MAX_SCENE_LINES = 14
+const MAX_SCENE_TITLE = 14
 
 const clean = (text: string): string => text.replace(/[#*>\n]/g, ' ').trim()
 
@@ -24,7 +25,7 @@ export function buildScenes(lines: DialogueLine[]): Scene[] {
   const push = (end: number): void => {
     const slice = lines.slice(start, end + 1)
     const firstCharacter = slice.find((line) => line.speaker === 'character')
-    const title = clean((firstCharacter ?? slice[0]).text).slice(0, 22) || `第 ${scenes.length + 1} 幕`
+    const title = clean((firstCharacter ?? slice[0]).text).slice(0, MAX_SCENE_TITLE) || `第 ${scenes.length + 1} 幕`
     scenes.push({ index: scenes.length, title, start, end })
   }
 

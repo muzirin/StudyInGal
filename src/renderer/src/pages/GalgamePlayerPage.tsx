@@ -352,10 +352,12 @@ export function GalgamePlayerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [immersive, editing, revealed, index, script])
 
+  // 离开页面时只恢复窗口状态；沉浸标志由 AppShell 在路由变化时清理，
+  // 这里**不能**重置 immersive——否则切换沉浸导致的重挂载会把 UI 又拉回来。
   useEffect(
     () => () => {
       if (fullscreenRef.current) void api.app.window('toggle-fullscreen')
-      useAppStore.getState().setImmersive(false)
+      fullscreenRef.current = false
     },
     []
   )
@@ -496,7 +498,7 @@ export function GalgamePlayerPage() {
             sx={{ position: 'absolute', top: 12, right: 12, zIndex: 4, ...GLASS_CONTROL }}
           >
             <Tooltip title="随堂问答">
-              <IconButton
+              <IconButton aria-label="随堂问答"
                 size="small"
                 sx={iconSx}
                 onClick={() => {
@@ -511,27 +513,27 @@ export function GalgamePlayerPage() {
               </IconButton>
             </Tooltip>
             <Tooltip title="更换场景背景">
-              <IconButton size="small" sx={iconSx} onClick={() => setBackgroundOpen(true)}>
+              <IconButton aria-label="更换场景背景" size="small" sx={iconSx} onClick={() => setBackgroundOpen(true)}>
                 <WallpaperRoundedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title="场景列表">
-              <IconButton size="small" sx={iconSx} onClick={() => setSceneOpen(true)}>
+              <IconButton aria-label="场景列表" size="small" sx={iconSx} onClick={() => setSceneOpen(true)}>
                 <MovieFilterRoundedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title="对话记录">
-              <IconButton size="small" sx={iconSx} onClick={() => setLogOpen(true)}>
+              <IconButton aria-label="对话记录" size="small" sx={iconSx} onClick={() => setLogOpen(true)}>
                 <HistoryRoundedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title="把这句加入黑板笔记">
-              <IconButton size="small" sx={iconSx} onClick={() => void quoteToNotes()}>
+              <IconButton aria-label="加入黑板笔记" size="small" sx={iconSx} onClick={() => void quoteToNotes()}>
                 <StickyNote2RoundedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title="导出存档">
-              <IconButton
+              <IconButton aria-label="导出存档"
                 size="small"
                 sx={iconSx}
                 onClick={async () => {
@@ -547,13 +549,13 @@ export function GalgamePlayerPage() {
               </IconButton>
             </Tooltip>
             <Tooltip title={autoSpeak ? '关闭自动朗读' : '开启自动朗读'}>
-              <IconButton size="small" sx={iconSx} onClick={() => setAutoSpeak((value) => !value)}>
+              <IconButton aria-label="自动朗读" size="small" sx={iconSx} onClick={() => setAutoSpeak((value) => !value)}>
                 {autoSpeak ? <VolumeUpRoundedIcon fontSize="small" /> : <VolumeOffRoundedIcon fontSize="small" />}
               </IconButton>
             </Tooltip>
             <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.25)', mx: 0.25 }} />
             <Tooltip title={immersive ? '退出全屏（Esc）' : '全屏游玩（F）'}>
-              <IconButton size="small" sx={iconSx} onClick={() => void toggleFullscreen()}>
+              <IconButton aria-label="全屏" size="small" sx={iconSx} onClick={() => void toggleFullscreen()}>
                 {immersive ? <FullscreenExitRoundedIcon fontSize="small" /> : <FullscreenRoundedIcon fontSize="small" />}
               </IconButton>
             </Tooltip>
