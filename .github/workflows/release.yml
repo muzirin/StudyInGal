@@ -36,8 +36,15 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      # ubuntu-latest 自带 Android SDK（ANDROID_HOME=/usr/local/lib/android/sdk），
+      # 不要用 android-actions/setup-android：它会尝试安装已下线的 legacy "tools" 包而失败。
+      - name: Show Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls "$ANDROID_HOME" || true
+          ls "$ANDROID_HOME/platforms" || true
+          ls "$ANDROID_HOME/build-tools" || true
 
       - name: Install dependencies
         run: npm ci
