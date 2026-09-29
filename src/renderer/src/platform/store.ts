@@ -4,6 +4,7 @@
  */
 import { DEFAULT_SETTINGS, ARCHIVE_FILE, CHARACTERS_FILE, LIBRARY_FILE, MOUNTS_FILE, SCHEDULE_FILE, SCRIPTS_FILE, SETTINGS_FILE } from '@shared/constants'
 import { normalizeScript } from '@mainlib/normalizeScript'
+import { isPristineLegacyDefault } from '@mainlib/legacyCharacter'
 import { readKey, updateKey, writeKey } from './jsonStore'
 import { deepMerge, newId } from './util'
 import type {
@@ -101,37 +102,19 @@ export function findNodeIn(db: LibraryDb, nodeId: string): { kind: LibraryKind; 
 
 /* ------------------------------- characters -------------------------------- */
 
-const DEFAULT_CHARACTER: Character = {
-  id: 'char_sakura',
-  name: '小樱',
-  avatar: '🌸',
-  personality: '温柔耐心、逻辑清晰，偶尔有点小傲娇的学霸学姐。喜欢把枯燥的知识讲成故事。',
-  speakingStyle: '亲切自然，偶尔用「呢」「哦」「～」，讲解时先给结论再展开。',
-  greeting: '欢迎回来～今天想学点什么呀？',
-  systemPrompt: [
-    '你是 StudyInGal 的伴学娘「小樱」。',
-    '你的职责是陪伴用户学习、讲解论文与教材、出题与答疑，并在用户分心时温和提醒。',
-    '保持角色一致性：温柔、耐心、条理清晰，偶尔俏皮但绝不敷衍。'
-  ].join('\n'),
-  sprites: [],
-  voice: { providerId: null, voiceId: '', rate: 1, pitch: 1 },
-  live2d: null,
-  tags: ['默认', '学姐'],
-  isCompanion: true,
-  createdAt: 0,
-  updatedAt: 0
+async function loadCharacters(): Promise<Character[]> {
+  const list = await readKey<Character[]>(KEYS.characters, [])
+  const cleaned = list.filter((item) => !isPristineLegacyDefault(item))
+  if (cleaned.length !== list.length) await writeKey(KEYS.characters, cleaned)
+  return cleaned
 }
 
 export async function listCharacters(): Promise<Character[]> {
-  const list = await readKey<Character[]>(KEYS.characters, [])
-  if (list.length > 0) return list
-  const seeded = [{ ...DEFAULT_CHARACTER, createdAt: Date.now(), updatedAt: Date.now() }]
-  await writeKey(KEYS.characters, seeded)
-  return seeded
+  return loadCharacters()
 }
 
 export async function upsertCharacter(input: Partial<Character>): Promise<Character> {
-  const list = await listCharacters()
+  const list = await loadCharacters()
   const now = Date.now()
   if (input.id) {
     const index = list.findIndex((item) => item.id === input.id)
@@ -143,19 +126,27 @@ export async function upsertCharacter(input: Partial<Character>): Promise<Charac
     }
   }
   const created: Character = {
-    ...DEFAULT_CHARACTER,
-    ...input,
     id: input.id ?? newId('char'),
+    name: input.name ?? '新角色',
+    avatar: input.avatar ?? '🙂',
+    personality: input.personality ?? '',
+    speakingStyle: input.speakingStyle ?? '',
+    greeting: input.greeting ?? '',
+    systemPrompt: input.systemPrompt ?? '',
+    sprites: input.sprites ?? [],
+    voice: input.voice ?? { providerId: null, voiceId: '', rate: 1, pitch: 1 },
+    live2d: input.live2d ?? null,
+    tags: input.tags ?? [],
+    isCompanion: input.isCompanion ?? false,
     createdAt: now,
-    updatedAt: now,
-    isCompanion: input.isCompanion ?? false
+    updatedAt: now
   }
   await writeKey(KEYS.characters, [...list, created])
   return created
 }
 
 export async function removeCharacter(id: string): Promise<void> {
-  const list = await listCharacters()
+  const list = await loadCharacters()
   await writeKey(
     KEYS.characters,
     list.filter((item) => item.id !== id)
@@ -199,6 +190,7 @@ export async function saveScript(input: Partial<ReturnType<typeof normalizeScrip
     lines: input.lines ?? [],
     questions: input.questions ?? [],
     providerId: input.providerId ?? null,
+    sourceChapter: input.sourceChapter ?? null,
     model: input.model ?? null,
     createdAt: now,
     updatedAt: now

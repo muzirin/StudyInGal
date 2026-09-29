@@ -3,13 +3,13 @@ import { JsonStore } from '../lib/jsonStore'
 import { dataDir } from '../lib/paths'
 import { newId } from '../lib/util'
 import { normalizeScript, normalizeScripts } from '../lib/normalizeScript'
+import { listCharacters } from './characters'
 import { SCRIPTS_FILE } from '@shared/constants'
 import type { DialogueLine, DialogueSpeaker, GalScript } from '@shared/types'
 
 const store = new JsonStore<GalScript[]>(join(dataDir(), SCRIPTS_FILE), [])
 
 export const EXAMPLE_SOURCE_ID = '__example__'
-const EXAMPLE_CHARACTER_ID = 'char_sakura'
 
 export function listScripts(): GalScript[] {
   return normalizeScripts(store.read()).sort((a, b) => b.updatedAt - a.updatedAt)
@@ -43,6 +43,7 @@ export function saveScript(input: Partial<GalScript> & { id?: string }): GalScri
     questions: input.questions ?? [],
     providerId: input.providerId ?? null,
     model: input.model ?? null,
+    sourceChapter: input.sourceChapter ?? null,
     createdAt: now,
     updatedAt: now
   }
@@ -222,6 +223,9 @@ export function seedExampleScripts(force = false): { added: number; total: numbe
   const existingTitles = new Set(list.map((script) => script.title))
   const now = Date.now()
   const added: GalScript[] = []
+  // 示例剧本跟随用户的第一个角色；一个角色都没有时留空，播放器会用默认旁白样式渲染
+  const characters = listCharacters()
+  const characterId = characters.find((item) => item.isCompanion)?.id ?? characters[0]?.id ?? ''
 
   for (const example of buildExamples()) {
     if (!force && existingTitles.has(example.title)) continue
@@ -231,7 +235,7 @@ export function seedExampleScripts(force = false): { added: number; total: numbe
       sourceId: EXAMPLE_SOURCE_ID,
       sourceKind: example.sourceKind,
       title: example.title,
-      characterId: EXAMPLE_CHARACTER_ID,
+      characterId,
       sceneId: null,
       lines: example.lines,
       questions: example.questions.map((item, offset) => ({

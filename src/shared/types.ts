@@ -260,8 +260,21 @@ export interface GalScript {
   questions: QuizQuestion[]
   providerId: string | null
   model: string | null
+  /** 本次取材的章节/小节标题；为空表示取材自整篇 */
+  sourceChapter?: string | null
   createdAt: number
   updatedAt: number
+}
+
+/** 本次生成只取材某一个章节/片段，避免一次性把整本教材丢给模型 */
+export interface GalExcerpt {
+  /** 分册教材：章节文件的绝对路径 */
+  path?: string
+  /** 单文件：字符区间 [start, end)，缺省表示从头开始 */
+  start?: number
+  end?: number
+  /** 展示用标题（章节名或小节名） */
+  title?: string
 }
 
 export interface GalGenerateOptions {
@@ -273,7 +286,15 @@ export interface GalGenerateOptions {
   focus?: string
   /** 随剧本一起生成的单选题数量（默认按行数自动推算） */
   questionCount?: number
+  /** 只取材某个章节/片段；缺省时按整篇（教材分册会合并全文） */
+  excerpt?: GalExcerpt
 }
+
+/** 文档的「渲染视图」数据：PDF 给原始字节（由前端用 pdf.js 画出来），DOCX 给转好的 HTML */
+export type DocumentPreview =
+  | { mode: 'pdf'; base64: string; sizeBytes: number }
+  | { mode: 'html'; html: string }
+  | { mode: 'none'; reason: string }
 
 /* --------------------------------- archive -------------------------------- */
 
@@ -527,6 +548,19 @@ export interface NoteEntry {
  *   - options 顺序即 `data-choice-index` 顺序
  *   - 正确项与解析放进 `params`（对应 data-params）
  */
+/**
+ * 答题后的分支台词：选了某个选项，角色接着说什么。
+ * EIPF 里对应 `decision` 后面的分支条目（`predicate` 引用 + `dialog` 台词）。
+ */
+export interface QuizBranch {
+  /** 对应选项下标 */
+  choiceIndex: number
+  /** 角色接着说的话：答对是「强化」，答错是「纠正/解释」 */
+  text: string
+  /** 说话时的情绪，缺省按 neutral 处理 */
+  emotion?: string
+}
+
 export interface QuizQuestion {
   id: string
   /** 线性序号，对应 EIPF 的 data-index */
@@ -536,8 +570,18 @@ export interface QuizQuestion {
   /** 正确项下标（0 起） */
   answerIndex: number
   explanation: string
+  /**
+   * 每个选项对应的分支台词（答对强化 / 答错由角色解释）。
+   * 模型没给全时由 `completeBranches` 按 explanation 补齐。
+   */
+  branches?: QuizBranch[] | null
   sourceId: string
   scriptId: string | null
+  /**
+   * 阶段性检测的插入位置：读到剧本第几行（`GalScript.lines` 下标，0 起）之后出现。
+   * 旧数据没有这个字段，播放器会退化为「每幕一批」。
+   */
+  checkpoint?: number | null
   createdAt: number
 }
 
@@ -555,6 +599,8 @@ export interface QuizAttempt {
   scriptId: string | null
   question: string
   answer: string
+  /** 实际选了哪个选项（0 起），用于回看走了哪条分支 */
+  choiceIndex?: number | null
   correct: boolean
   at: number
 }
@@ -647,6 +693,11 @@ export interface AppSettings {
     autoAtSceneEnd: boolean
     /** 每组题目数量 */
     count: number
+    /**
+     * 到检测点再用「已经读到的台词」现场出题（更贴合进度，但每个检测点多一次模型调用）。
+     * 关闭时用随剧本预生成的题目（已按段锚定，不会一次问完）。
+     */
+    generateAtCheckpoint?: boolean
   }
   live2d: {
     enabled: boolean

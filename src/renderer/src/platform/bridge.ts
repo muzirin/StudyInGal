@@ -15,12 +15,13 @@ import { Preferences } from '@capacitor/preferences'
 import { CHANNELS, type StudyEvent } from '@shared/channels'
 import { APP_NAME, DEFAULT_SETTINGS, GITHUB_ISSUES_URL, GITHUB_URL } from '@shared/constants'
 import { readKey, writeKey } from './jsonStore'
+import { applyExcerpt, isChapterPathAllowed, pickChapter } from '@mainlib/excerpt'
 import * as store from './store'
 import * as ai from './ai'
 import * as docs from './documents'
 import { basename, extname, stripExtension } from './path'
 import { base64ToText, deepMerge, newId, textToBase64 } from './util'
-import type { CloudMount, LibraryNode, QuizQuestion } from '@shared/types'
+import type { CloudMount, GalExcerpt, LibraryNode, QuizQuestion } from '@shared/types'
 
 const CHANNEL_VALUES = Object.values(CHANNELS)
 const ALL: string[] = []
@@ -297,7 +298,9 @@ const handlers: Record<string, Handler> = {
         // 原生端「导入文件夹」是多选文件：只有 1 个文件时按单篇处理
         if (dirFiles && dirFiles.length > 1) {
           const chapters = dirFiles
-            .filter((file) => ['.md', '.markdown', '.tex', '.latex', '.txt'].includes(extname(file.name)))
+            // PDF/DOCX 也算章节：移动端解析不了，但至少要列出来（读取时给出明确提示），
+            // 否则「全是 PDF 的文件夹」导入后会变成空目录。
+            .filter((file) => ['.md', '.markdown', '.tex', '.latex', '.txt', '.pdf', '.docx', '.doc'].includes(extname(file.name)))
             .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN', { numeric: true }))
           if (chapters.length === 0) {
             failed.push(dirFiles[0].name)
@@ -414,6 +417,35 @@ const handlers: Record<string, Handler> = {
     const library = await store.readLibrary()
     const found = store.findNodeIn(library, String(payload.nodeId))
     return found?.node.chapters ?? []
+  },
+  [CHANNELS.library.preview]: async (payload) => {
+    const library = await store.readLibrary()
+    const found = store.findNodeIn(library, String(payload.nodeId))
+    if (!found) throw new Error('文献不存在')
+    const format = found.node.format
+    if (format === 'pdf') {
+      const result = await Filesystem.readFile({ path: found.node.path })
+      const base64 = typeof result.data === 'string' ? result.data : await docs.blobToBase64(result.data as unknown as Blob)
+      return { mode: 'pdf', base64, sizeBytes: Math.floor((base64.length * 3) / 4) }
+    }
+    if (format === 'docx') {
+      // mammoth 的浏览器包按需加载，避免拖慢移动端首屏
+      const mammoth = (await import(/* @vite-ignore */ 'mammoth/mammoth.browser.min.js')) as unknown as {
+        convertToHtml: (input: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }>
+      }
+      const result = await Filesystem.readFile({ path: found.node.path })
+      const base64 = typeof result.data === 'string' ? result.data : await docs.blobToBase64(result.data as unknown as Blob)
+      const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
+      const html = (await mammoth.convertToHtml({ arrayBuffer: bytes.buffer })).value ?? ''
+      return { mode: 'html', html }
+    }
+    return {
+      mode: 'none',
+      reason:
+        format === 'doc'
+          ? '旧版 .doc 无法渲染，请先转换成 .docx 或 PDF'
+          : '移动端暂不支持该格式的渲染视图，可切换到文本视图查看内容'
+    }
   },
   [CHANNELS.library.ocr]: () => unsupported('本地 OCR'),
   [CHANNELS.library.ocrText]: () => ({ exists: false, text: '' }),
@@ -556,12 +588,38 @@ const handlers: Record<string, Handler> = {
   [CHANNELS.ai.test]: (payload) => ai.testProvider(String(payload.id)),
   [CHANNELS.ai.chat]: (payload) => ai.chat(payload as never),
   [CHANNELS.ai.generateScript]: async (payload) => {
-    const options = payload as { sourceId: string }
+    const options = payload as { sourceId: string; excerpt?: GalExcerpt }
     const library = await store.readLibrary()
     const found = store.findNodeIn(library, options.sourceId)
     if (!found) throw new Error('找不到源文献')
-    const text = await docs.readNodeText(found.node)
-    const script = await ai.generateScript(options as never, text)
+    // 教材分册按单个章节文件取材，避免一次投喂整本；找不到所选章节时明确报错，
+    // 绝不悄悄退回「整本合并」，否则会从第一章重新讲起。
+    let text: string
+    let sourceChapter: string | null = null
+    if (found.node.format === 'folder') {
+      const requested = options.excerpt?.path
+      const chapter = pickChapter(found.node.chapters, requested)
+      if (chapter) {
+        text = await docs.readPathText(chapter.path)
+        sourceChapter = chapter.title
+      } else if (requested) {
+        if (!isChapterPathAllowed(requested, found.node.path, found.node.chapters)) {
+          throw new Error('所选章节不属于这本教材，请回到 Gal 工坊重新选择')
+        }
+        if (!(await docs.pathExists(requested))) {
+          throw new Error('所选章节文件已不存在（可能被移动或改名），请回到 Gal 工坊重新选择')
+        }
+        text = await docs.readPathText(requested)
+        sourceChapter = options.excerpt?.title?.trim() || stripExtension(basename(requested))
+      } else {
+        text = await docs.readNodeText(found.node)
+        sourceChapter = null
+      }
+    } else {
+      text = applyExcerpt(await docs.readNodeText(found.node), options.excerpt)
+      sourceChapter = options.excerpt?.title ?? null
+    }
+    const script = await ai.generateScript(options as never, text, sourceChapter)
     await addHistory({ kind: 'script', title: script.title, subtitle: `${script.lines.length} 行 · ${script.questions.length} 题`, refId: script.id, route: `/galgame/${script.id}` })
     return script
   },

@@ -28,6 +28,7 @@ export const CHANNELS = {
     update: 'library:update',
     read: 'library:read',
     write: 'library:write',
+    preview: 'library:preview',
     merge: 'library:merge',
     mergeExport: 'library:mergeExport',
     chapters: 'library:chapters',

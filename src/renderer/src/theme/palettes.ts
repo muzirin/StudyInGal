@@ -138,7 +138,16 @@ export function buildTheme({ paletteId, mode, radius, touchOptimized, compact }:
             '--sig-rail-width': '76px',
             '--sig-titlebar-height': '44px',
             '--sig-mask-a': mix(primary, dark ? '#000000' : '#FFFFFF', 0.22),
-            '--sig-mask-b': mix(secondary, primary, 0.55)
+            '--sig-mask-b': mix(secondary, primary, 0.55),
+            // 代码高亮配色（hljs 类名在 global.css 里映射到这些变量，随明暗模式自动切换）
+            '--sig-code-keyword': dark ? mix(primary, '#FFFFFF', 0.16) : mix(primary, '#000000', 0.12),
+            '--sig-code-string': dark ? '#8FD9A8' : '#1F7A45',
+            '--sig-code-number': dark ? '#F0B27A' : '#A75B00',
+            '--sig-code-comment': dark ? '#7C7488' : '#8A8494',
+            '--sig-code-function': dark ? '#9CC7FF' : '#1D4ED8',
+            '--sig-code-attr': dark ? '#E8A6D4' : '#9C27B0',
+            '--sig-code-builtin': dark ? '#7FD8E8' : '#0E7490',
+            '--sig-code-deleted': dark ? '#FF8A9B' : '#C62828'
           },
           body: {
             backgroundImage:

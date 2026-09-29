@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Box,
@@ -21,15 +21,21 @@ import SaveRoundedIcon from '@mui/icons-material/SaveRounded'
 import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded'
 import Tooltip from '@mui/material/Tooltip'
 import QuizRoundedIcon from '@mui/icons-material/QuizRounded'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { useAppStore } from '../state/appStore'
 import { EmptyState, Section } from '../components/Section'
 import { formatDateTime } from '../lib/format'
-import type { Character, GalScript, LibraryNode } from '@shared/types'
+import { splitSections, type DocumentSection } from '../lib/sections'
+import { pickChapter } from '@mainlib/excerpt'
+import type { ChapterRef, Character, GalExcerpt, GalScript, LibraryNode } from '@shared/types'
+
+/** 章节选择里「整本合并」的哨兵值 */
+const WHOLE_BOOK = '__all__'
 
 export function GalgamePage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const toast = useAppStore((state) => state.toast)
 
   const [nodes, setNodes] = useState<(LibraryNode & { kindLabel: string })[]>([])
@@ -44,6 +50,16 @@ export function GalgamePage() {
   const [busy, setBusy] = useState(false)
   const [query, setQuery] = useState('')
   const [sortBy, setSortBy] = useState<'recent' | 'lines' | 'title'>('recent')
+  const [chapters, setChapters] = useState<ChapterRef[]>([])
+  const [chapterPath, setChapterPath] = useState('')
+  const [sections, setSections] = useState<DocumentSection[]>([])
+  const [sectionIndex, setSectionIndex] = useState(-1)
+  const [sourceChars, setSourceChars] = useState(0)
+  /** 不在目录列表里的所选章节的展示名（例如阅读器带过来的标题） */
+  const [excerptTitle, setExcerptTitle] = useState('')
+  /** 从「生成 Gal」按钮带过来的章节，等章节列表加载后再选中 */
+  const pendingChapter = useRef('')
+  const pendingChapterTitle = useRef('')
 
   const refresh = async (): Promise<void> => {
     const [papers, textbooks, characterList, scriptList] = await Promise.all([
@@ -62,10 +78,122 @@ export function GalgamePage() {
   }
 
   useEffect(() => {
+    const source = searchParams.get('source')
+    const chapter = searchParams.get('chapter')
+    const chapterTitle = searchParams.get('chapterTitle')
+    if (source) setSourceId(source)
+    if (chapter) {
+      pendingChapter.current = chapter
+      pendingChapterTitle.current = chapterTitle ?? ''
+    }
     void refresh()
-  }, [])
+  }, [searchParams])
 
   const selectedSource = useMemo(() => nodes.find((node) => node.id === sourceId) ?? null, [nodes, sourceId])
+
+  // 选中源文献后准备「取材单位」：教材分册按章节文件，单文件长文按标题切小节
+  const nodesRef = useRef(nodes)
+  nodesRef.current = nodes
+  const chapterPathRef = useRef(chapterPath)
+  chapterPathRef.current = chapterPath
+  useEffect(() => {
+    const source = nodesRef.current.find((node) => node.id === sourceId) ?? null
+    if (!source) {
+      setChapters([])
+      setChapterPath('')
+      setSections([])
+      setSectionIndex(-1)
+      setSourceChars(0)
+      return
+    }
+    let cancelled = false
+    const load = async (): Promise<void> => {
+      if (source.format === 'folder') {
+        const list = await api.library.chapters(source.id).catch(() => [] as ChapterRef[])
+        if (cancelled) return
+        setChapters(list)
+        setSections([])
+        setSectionIndex(-1)
+        setSourceChars(0)
+        // 优先用阅读器带过来的章节；其次是用户在当前源上已经选过的章节。
+        // 命中目录就沿用目录里的标题，没命中也要保留这条路径（旧索引/刚改名），
+        // 仅当完全没有候选时才默认第一章。
+        const pending = pendingChapter.current
+        const pendingTitle = pendingChapterTitle.current
+        pendingChapter.current = ''
+        pendingChapterTitle.current = ''
+        const candidate = pending || chapterPathRef.current
+        const matched = pickChapter(list, candidate)
+        if (matched) {
+          setChapterPath(matched.path)
+          setExcerptTitle('')
+          return
+        }
+        if (candidate && candidate !== WHOLE_BOOK) {
+          setChapterPath(candidate)
+          setExcerptTitle(pendingTitle)
+          if (!pending) {
+            toast('warning', '上次选的章节已不在目录中，生成时会按原路径直接读取（若文件被移动会提示重新选择）')
+          }
+          return
+        }
+        setChapterPath(list[0]?.path ?? WHOLE_BOOK)
+        setExcerptTitle('')
+        return
+      }
+      setChapters([])
+      setChapterPath('')
+      const document = await api.library.read(source.id).catch(() => null)
+      if (cancelled) return
+      const text = document?.text ?? ''
+      const split = splitSections(text)
+      setSourceChars(text.length)
+      setSections(split)
+      // 长文默认只取第一节，避免一次把整本书丢给模型
+      setSectionIndex(split.length > 0 ? 0 : -1)
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [sourceId, nodes.length])
+
+  /** 本次生成实际取材的范围：分册教材给章节路径，单文件给字符区间 */
+  const excerpt = useMemo<GalExcerpt | undefined>(() => {
+    if (!selectedSource) return undefined
+    if (selectedSource.format === 'folder') {
+      // 只要用户选了具体章节，就把这条路径原样带上；即使它不在当前目录列表里
+      // （列表可能是旧索引，比如文件被改名/阅读器带来的是最新路径），也不能悄悄改成整本合并。
+      if (!chapterPath || chapterPath === WHOLE_BOOK) return undefined
+      const chapter = pickChapter(chapters, chapterPath)
+      return { path: chapterPath, title: chapter?.title ?? excerptTitle }
+    }
+    const section = sectionIndex >= 0 ? sections[sectionIndex] : undefined
+    return section ? { start: section.start, end: section.end, title: section.title } : undefined
+  }, [selectedSource, chapters, chapterPath, sections, sectionIndex, excerptTitle])
+
+  const excerptHint = useMemo(() => {
+    if (!selectedSource) return ''
+    if (selectedSource.format === 'folder') {
+      const chapter = pickChapter(chapters, chapterPath)
+      if (chapter) return `本次只生成「${chapter.title}」，其余章节不会被投喂给模型。`
+      if (chapterPath && chapterPath !== WHOLE_BOOK) {
+        return `本次只生成所选章节「${excerptTitle || chapterPath}」；它不在当前目录列表里（可能刚改名或来自阅读器），生成时会按这条路径直接读取。`
+      }
+      return chapters.length > 0 ? '本次会合并整本教材（内容很多，生成慢且容易只讲到前几章）。' : ''
+    }
+    const section = sectionIndex >= 0 ? sections[sectionIndex] : undefined
+    if (section) {
+      return `原文约 ${sourceChars.toLocaleString('zh-Hans-CN')} 字，已超过单次上限，默认只取「${section.title}」这一节。`
+    }
+    return sections.length > 0 ? `本次取全文（约 ${sourceChars.toLocaleString('zh-Hans-CN')} 字），超出部分会被截断。` : ''
+  }, [selectedSource, chapters, chapterPath, sections, sectionIndex, sourceChars, excerptTitle])
+
+  /** 不在目录列表里的所选章节的展示名（来自阅读器标题或文件名） */
+  const unmatchedChapterLabel = useMemo(
+    () => excerptTitle || chapterPath.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, '') || '所选章节',
+    [excerptTitle, chapterPath]
+  )
 
   const seedExamples = async (): Promise<void> => {
     const result = await api.gal.seedExamples(true)
@@ -94,14 +222,15 @@ export function GalgamePage() {
     }
   }, [scripts, query, sortBy])
 
-  const generate = async (): Promise<void> => {    if (!sourceId || !characterId) {
+  const generate = async (): Promise<void> => {
+    if (!sourceId || !characterId) {
       toast('warning', '请先选择文献和角色')
       return
     }
     setBusy(true)
     try {
-      const script = await api.ai.generateScript({ sourceId, characterId, depth, language, maxLines, focus: focus || undefined })
-      toast('success', `已生成 ${script.lines.length} 行剧本`)
+      const script = await api.ai.generateScript({ sourceId, characterId, depth, language, maxLines, focus: focus || undefined, excerpt })
+      toast('success', excerpt?.title ? `已生成《${excerpt.title}》的 ${script.lines.length} 行剧本` : `已生成 ${script.lines.length} 行剧本`)
       navigate(`/galgame/${script.id}`)
     } catch (error) {
       toast('error', `生成失败：${(error as Error).message}`)
@@ -120,7 +249,12 @@ export function GalgamePage() {
               <Button size="small" variant="outlined" startIcon={<AutoStoriesRoundedIcon />} onClick={() => void seedExamples()}>
                 添加示例剧本
               </Button>
-              <Button variant="contained" startIcon={<AutoAwesomeRoundedIcon />} disabled={busy} onClick={() => void generate()}>
+              <Button
+                variant="contained"
+                startIcon={<AutoAwesomeRoundedIcon />}
+                disabled={busy || characters.length === 0}
+                onClick={() => void generate()}
+              >
                 {busy ? '生成中…' : '生成剧本'}
               </Button>
             </Stack>
@@ -135,6 +269,44 @@ export function GalgamePage() {
               </MenuItem>
             ))}
           </TextField>
+          {selectedSource?.format === 'folder' && (chapters.length > 0 || (chapterPath && chapterPath !== WHOLE_BOOK)) ? (
+            <TextField
+              select
+              label="取材章节"
+              value={chapterPath}
+              onChange={(event) => {
+                setChapterPath(event.target.value)
+                setExcerptTitle('')
+              }}
+              fullWidth
+            >
+              {chapters.map((chapter, index) => (
+                <MenuItem key={chapter.path} value={chapter.path}>
+                  {index + 1}. {chapter.title}
+                </MenuItem>
+              ))}
+              {chapterPath && chapterPath !== WHOLE_BOOK && !pickChapter(chapters, chapterPath) ? (
+                <MenuItem value={chapterPath}>{unmatchedChapterLabel}（不在目录中，将按此路径读取）</MenuItem>
+              ) : null}
+              <MenuItem value={WHOLE_BOOK}>整本合并（内容多，不推荐）</MenuItem>
+            </TextField>
+          ) : null}
+          {selectedSource && selectedSource.format !== 'folder' && sections.length > 0 ? (
+            <TextField
+              select
+              label="取材小节"
+              value={sectionIndex}
+              onChange={(event) => setSectionIndex(Number(event.target.value))}
+              fullWidth
+            >
+              {sections.map((section) => (
+                <MenuItem key={section.index} value={section.index}>
+                  {section.title}（约 {(section.end - section.start).toLocaleString('zh-Hans-CN')} 字）
+                </MenuItem>
+              ))}
+              <MenuItem value={-1}>全文（约 {sourceChars.toLocaleString('zh-Hans-CN')} 字，超出会被截断）</MenuItem>
+            </TextField>
+          ) : null}
           <TextField select label="角色" value={characterId} onChange={(event) => setCharacterId(event.target.value)} fullWidth>
             {characters.map((character) => (
               <MenuItem key={character.id} value={character.id}>
@@ -160,6 +332,13 @@ export function GalgamePage() {
           />
           <TextField label="重点聚焦（可选）" value={focus} onChange={(event) => setFocus(event.target.value)} fullWidth placeholder="例如：第三章的算法复杂度" />
         </Box>
+        {excerptHint ? (
+          <Box sx={{ px: 2, pb: 2 }}>
+            <Alert severity="info" icon={false}>
+              {excerptHint}
+            </Alert>
+          </Box>
+        ) : null}
         {selectedSource ? (
           <Box sx={{ px: 2, pb: 2 }}>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -170,6 +349,19 @@ export function GalgamePage() {
           </Box>
         ) : null}
       </Section>
+
+      {characters.length === 0 ? (
+        <Alert
+          severity="info"
+          action={
+            <Button size="small" color="inherit" onClick={() => navigate('/characters')}>
+              去创建角色
+            </Button>
+          }
+        >
+          还没有任何角色，剧本需要至少一个角色来出演。先到「角色管理」创建一个吧。
+        </Alert>
+      ) : null}
 
       {busy ? <Alert severity="info" icon={<CircularProgress size={16} />}>正在让伴学娘阅读并改写剧本，长论文可能需要一两分钟…</Alert> : null}
 
@@ -224,7 +416,9 @@ export function GalgamePage() {
                     源：
                     {script.sourceId === '__example__'
                       ? '内置示例'
-                      : `${sourceTitle.get(script.sourceId) ?? '（已移除）'} · ${script.sourceKind === 'textbook' ? '教材' : '论文'}`}
+                      : `${sourceTitle.get(script.sourceId) ?? '（已移除）'} · ${script.sourceKind === 'textbook' ? '教材' : '论文'}${
+                          script.sourceChapter ? ` · ${script.sourceChapter}` : ''
+                        }`}
                   </Typography>
                   <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ my: 1 }}>
                     <Chip size="small" label={`${script.lines.length} 行`} />

@@ -40,6 +40,7 @@ import { api } from '../api'
 import { useAppStore } from '../state/appStore'
 import { MarkdownView } from '../components/MarkdownView'
 import { QuizDialog } from '../components/QuizDialog'
+import { DocumentRenderedView } from '../components/DocumentPreview'
 import { sectionsFromMarkdown } from '../lib/markdown'
 import type { ChapterRef, DocumentContent, LibraryKind, NoteEntry } from '@shared/types'
 
@@ -132,6 +133,10 @@ export function ReaderPage() {
     if (activeSection) return activeSection.content
     return document?.text ?? ''
   }, [activeSection, document?.text])
+
+  /** PDF/DOC/DOCX 这类二进制文档：渲染视图展示原始排版，文本视图展示抽取结果 */
+  const isBinaryDocument =
+    document?.format === 'pdf' || document?.format === 'docx' || document?.format === 'doc'
 
   // 记录阅读进度：滚动容器是 AppShell 的 main，节流后写回库索引
   useEffect(() => {
@@ -268,7 +273,7 @@ export function ReaderPage() {
             ) : null}
             <ToggleButtonGroup size="small" exclusive value={mode} onChange={(_event, value) => value && setMode(value)}>
               <ToggleButton value="rendered">渲染</ToggleButton>
-              <ToggleButton value="source">源码</ToggleButton>
+              <ToggleButton value="source">{isBinaryDocument ? '文本' : '源码'}</ToggleButton>
             </ToggleButtonGroup>
             <Stack direction="row" spacing={0} alignItems="center" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 999, px: 0.5 }}>
               <Tooltip title="缩小字号">
@@ -334,7 +339,20 @@ export function ReaderPage() {
             >
               询问
             </Button>
-            <Button size="small" variant="outlined" startIcon={<AutoStoriesRoundedIcon />} onClick={() => navigate('/galgame')}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<AutoStoriesRoundedIcon />}
+              onClick={() => {
+                const params = new URLSearchParams({ source: nodeId })
+                // 分册教材把当前章节一起带过去，Gal 工坊只会取材这一章
+                if (document?.format === 'folder' && activeSection?.anchor) {
+                  params.set('chapter', activeSection.anchor)
+                  params.set('chapterTitle', activeSection.title)
+                }
+                navigate(`/galgame?${params.toString()}`)
+              }}
+            >
               生成 Gal
             </Button>
             <Tooltip title={notesOpen ? '收起黑板笔记' : '展开黑板笔记'}>
@@ -426,13 +444,19 @@ export function ReaderPage() {
         ) : null}
 
         <Paper ref={contentRef} elevation={0} onMouseUp={captureSelection} sx={{ p: { xs: 2, md: 3 }, borderRadius: 2, border: '1px solid', borderColor: 'divider', minWidth: 0 }}>
-          {document?.format === 'pdf' && readableText.trim().length < 40 ? (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              该 PDF 可能是扫描件，未能提取到文本。可以先执行本地 OCR，或点击「外部打开」用系统阅读器查看。
-            </Alert>
-          ) : null}
           {mode === 'rendered' ? (
-            <MarkdownView fontSize={settings?.editor.fontSize}>{readableText}</MarkdownView>
+            isBinaryDocument ? (
+              <>
+                <DocumentRenderedView nodeId={nodeId} />
+                {document?.format === 'pdf' && readableText.trim().length < 40 ? (
+                  <Alert severity="warning" sx={{ mt: 2 }}>
+                    这个 PDF 没能提取出文本（可能是扫描件）。渲染视图仍可正常阅读；若要用 AI 精读、出题或检测，请先执行本地 OCR，或切换到「文本」查看已抽取的内容。
+                  </Alert>
+                ) : null}
+              </>
+            ) : (
+              <MarkdownView fontSize={settings?.editor.fontSize}>{readableText}</MarkdownView>
+            )
           ) : (
             <Box
               component="pre"
@@ -448,6 +472,20 @@ export function ReaderPage() {
             </Box>
           )}
           <Divider sx={{ my: 3 }} />
+          {readableText.trim().length >= 200 ? (
+            <Alert
+              severity="info"
+              icon={false}
+              sx={{ mb: 1.5 }}
+              action={
+                <Button size="small" color="inherit" startIcon={<QuizRoundedIcon />} onClick={() => setQuizOpen(true)}>
+                  检测本节
+                </Button>
+              }
+            >
+              阶段性检测：本节读完了，用几道题确认自己真的看懂了（题目只考这一节）。
+            </Alert>
+          ) : null}
           <Typography variant="caption" color="text.disabled">
             提示：选中任意文字可浮动「询问 / 引用到笔记」；点击「精读本章」让 AI 生成结构化黑板笔记。
           </Typography>

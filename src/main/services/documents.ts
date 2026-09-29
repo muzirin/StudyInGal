@@ -4,6 +4,7 @@ import type {
   ChapterRef,
   DocumentContent,
   DocumentFormat,
+  DocumentPreview,
   LibraryNode,
   MergedDocument,
   OcrResult
@@ -11,7 +12,12 @@ import type {
 import { EDITABLE_EXTENSIONS } from '@shared/constants'
 
 const TEXT_EXTENSIONS = new Set(EDITABLE_EXTENSIONS)
-const CHAPTER_EXTENSIONS = new Set(['.md', '.markdown', '.tex', '.latex', '.txt'])
+/**
+ * 分册教材里被当作「章节」的扩展名。
+ * 含 PDF/DOCX：它们同样能抽取纯文本（见 extractPlainText），
+ * 若只认 Markdown/LaTeX，用户导入一个全是 PDF 的文件夹就会看到「空目录」。
+ */
+const CHAPTER_EXTENSIONS = new Set(['.md', '.markdown', '.tex', '.latex', '.txt', '.pdf', '.docx', '.doc'])
 
 export function detectFormat(target: string, isDirectory: boolean): DocumentFormat {
   if (isDirectory) return 'folder'
@@ -138,6 +144,46 @@ export async function readDocument(node: LibraryNode): Promise<DocumentContent> 
     html: null,
     isBinary: format !== 'txt' && !text.startsWith('['),
     editable: false
+  }
+}
+
+/** 读取任意路径的纯文本（按扩展名解析），供剧本生成按章节取材使用 */
+export async function readPathText(target: string): Promise<string> {
+  return stripChapterMarker(await extractPlainText(target, detectFormat(target, false)))
+}
+
+/** 单个文件超过这个大小就不做渲染视图（避免几十 MB 的 base64 在 IPC 上来回搬） */
+const PREVIEW_MAX_BYTES = 80 * 1024 * 1024
+
+/**
+ * 渲染视图数据：不是「抽取文本」，而是让界面能把原始文档画出来。
+ * - PDF：直接把原始字节交给前端（pdf.js 画到 canvas），不经过 OCR/文本抽取
+ * - DOCX：用 mammoth 转成保留格式的 HTML
+ * - DOC：老格式无法解析，返回原因让界面提示「先用外部程序转换」
+ */
+export async function renderPreview(node: LibraryNode): Promise<DocumentPreview> {
+  if (node.format === 'pdf') {
+    const info = await stat(node.path)
+    if (info.isDirectory()) return { mode: 'none', reason: '这不是一个文件' }
+    if (info.size > PREVIEW_MAX_BYTES) {
+      return { mode: 'none', reason: `文件约 ${Math.round(info.size / 1024 / 1024)}MB，过大暂不渲染，可「外部打开」查看` }
+    }
+    const data = await readFile(node.path)
+    return { mode: 'pdf', base64: data.toString('base64'), sizeBytes: info.size }
+  }
+
+  if (node.format === 'docx') {
+    const mammoth = await import('mammoth')
+    const result = await mammoth.convertToHtml({ path: node.path })
+    return { mode: 'html', html: result.value ?? '' }
+  }
+
+  return {
+    mode: 'none',
+    reason:
+      node.format === 'doc'
+        ? '旧版 .doc 无法渲染，请先转换成 .docx 或 PDF'
+        : '该格式没有渲染视图，可切换到文本视图查看提取的内容'
   }
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Box,
@@ -34,6 +34,8 @@ interface Props {
   questions?: QuizQuestion[]
   /** 没有现成题目时用于补题（例如给旧剧本「重新出题」） */
   regenerate?: () => Promise<{ questions: QuizQuestion[]; truncated: boolean }>
+  /** 角色名：答题后由 TA 接着说话（答对强化 / 答错解释） */
+  speakerName?: string
 }
 
 export function QuizDialog({
@@ -45,7 +47,8 @@ export function QuizDialog({
   title,
   count = 3,
   questions: provided,
-  regenerate
+  regenerate,
+  speakerName
 }: Props) {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
@@ -60,6 +63,28 @@ export function QuizDialog({
 
   const current = questions[index] ?? null
   const hasProvided = Boolean(provided && provided.length > 0)
+  /**
+   * 分支台词：选对是强化，选错是角色解释。
+   * 优先按「实际选的选项」取，模型没给这一项时退回按对错取（再兜底 explanation）。
+   */
+  const branch = useMemo(() => {
+    if (!current || !result) return null
+    const picked = Number(answer.trim())
+    const byChoice = Number.isInteger(picked)
+      ? (current.branches ?? []).find((item) => item.choiceIndex === picked)
+      : undefined
+    const byCorrectness = (current.branches ?? []).find((item) =>
+      result.correct ? item.choiceIndex === current.answerIndex : item.choiceIndex !== current.answerIndex
+    )
+    const found = byChoice ?? byCorrectness ?? null
+    if (found) return found
+    if (!current.explanation.trim()) return null
+    return {
+      choiceIndex: Number.isInteger(picked) ? picked : current.answerIndex,
+      text: current.explanation,
+      emotion: result.correct ? 'happy' : 'serious'
+    }
+  }, [current, result, answer])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -200,19 +225,45 @@ export function QuizDialog({
             </Stack>
 
             {result ? (
-              <Alert
-                severity={result.correct ? 'success' : 'error'}
-                icon={result.correct ? <CheckCircleRoundedIcon /> : <CancelRoundedIcon />}
-              >
-                <Typography variant="body2" fontWeight={600}>
-                  {result.feedback}
-                </Typography>
-                {result.explanation ? (
-                  <Typography variant="body2" sx={{ mt: 0.5 }}>
-                    {result.explanation}
-                  </Typography>
+              <Stack spacing={1.2}>
+                {branch ? (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      gap: 1.2,
+                      alignItems: 'flex-start',
+                      p: 1.4,
+                      borderRadius: 2,
+                      border: '1px solid',
+                      borderColor: result.correct ? 'success.main' : 'warning.main',
+                      bgcolor: 'var(--sig-surface-variant)'
+                    }}
+                  >
+                    <Typography sx={{ fontSize: 20, lineHeight: 1.2 }}>{result.correct ? '🌟' : '💡'}</Typography>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {speakerName ?? '伴学娘'} · {result.correct ? '强化' : '给你讲讲'}
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {branch.text}
+                      </Typography>
+                    </Box>
+                  </Box>
                 ) : null}
-              </Alert>
+                <Alert
+                  severity={result.correct ? 'success' : 'error'}
+                  icon={result.correct ? <CheckCircleRoundedIcon /> : <CancelRoundedIcon />}
+                >
+                  <Typography variant="body2" fontWeight={600}>
+                    {result.feedback}
+                  </Typography>
+                  {result.explanation ? (
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      {result.explanation}
+                    </Typography>
+                  ) : null}
+                </Alert>
+              </Stack>
             ) : null}
           </Stack>
         ) : null}

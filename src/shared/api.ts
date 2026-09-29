@@ -12,6 +12,7 @@ import type {
   Conversation,
   DialogueLine,
   DocumentContent,
+  DocumentPreview,
   FocusSummary,
   FolderNode,
   GalGenerateOptions,
@@ -87,6 +88,8 @@ export interface StudyApi {
     merge(nodeId: string): Promise<MergedDocument>
     mergeExport(nodeId: string, target: string): Promise<string>
     chapters(nodeId: string): Promise<ChapterRef[]>
+    /** 渲染视图数据：PDF 原始字节 / DOCX 转出的 HTML */
+    preview(nodeId: string): Promise<DocumentPreview>
     ocr(nodeId: string, language: string): Promise<OcrResult>
     ocrText(nodeId: string): Promise<{ exists: boolean; text: string }>
     createFolder(input: { kind: LibraryKind; name: string; parentId: string | null }): Promise<FolderNode>

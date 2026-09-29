@@ -4,6 +4,8 @@
  */
 import { parseDialogueJson } from '@mainlib/jsonLines'
 import { parseQuizQuestions } from '@mainlib/quizParse'
+import { assignCheckpoints, progressiveQuizInstruction, segmentBlocks } from '@mainlib/quizCheckpoints'
+import { completeBranches } from '@mainlib/quizBranches'
 import { SAFE_FALLBACK_TOKENS, clampMaxTokens, estimateScriptTokens, isMaxTokenError, parseAllowedMaxTokens, tokenCandidates } from '@mainlib/aiTokens'
 import { getSettings, findNodeIn, readLibrary, saveScript, getScript, listCharacters, listAttempts, writeAttempts } from './store'
 import { newId } from './util'
@@ -167,7 +169,7 @@ const DEPTH: Record<GalGenerateOptions['depth'], { chars: number; instruction: s
   deep: { chars: 40000, instruction: '逐节深入讲解，包含方法细节、公式直觉、实验设计权衡与可能的局限。' }
 }
 
-export async function generateScript(options: GalGenerateOptions, contextText: string): Promise<GalScript> {
+export async function generateScript(options: GalGenerateOptions, contextText: string, chapterTitle?: string | null): Promise<GalScript> {
   const library = await readLibrary()
   const found = findNodeIn(library, options.sourceId)
   if (!found) throw new Error('找不到源文献，请刷新论文/教材库')
@@ -180,9 +182,11 @@ export async function generateScript(options: GalGenerateOptions, contextText: s
   const budget = DEPTH[options.depth] ?? DEPTH.standard
   const questionCount = options.questionCount && options.questionCount > 0 ? options.questionCount : Math.max(3, Math.min(10, Math.round(options.maxLines / 6)))
   const excerpt = contextText.slice(0, budget.chars)
+  const sourceChapter = chapterTitle?.trim() ? chapterTitle.trim() : null
 
   const user = [
     `源文献标题：${found.node.title}`,
+    sourceChapter ? `取材范围：${sourceChapter}（本次只讲这一部分，不要涉及其他章节的内容）` : '',
     `语言：${options.language === 'zh' ? '中文' : 'English'}`,
     `讲解深度指令：${budget.instruction}`,
     `剧本：最多 ${options.maxLines} 行对话。`,
@@ -190,7 +194,7 @@ export async function generateScript(options: GalGenerateOptions, contextText: s
     '剧本要求：角色是你（speaker=character），用户是「我」（speaker=user），旁白用 narration。',
     `emotion 只能取以下之一：${EMOTIONS.join(', ')}。`,
     '每行台词尽量控制在 60 字以内。',
-    `题目：${questionCount} 道单选题，考察对内容的理解。每题 4 个选项，只有一个正确。`,
+    progressiveQuizInstruction(questionCount, options.maxLines),
     '只输出 JSON：{"lines":[{"speaker":"character","text":"...","emotion":"neutral"}],"questions":[{"question":"题干","options":["A","B","C","D"],"answerIndex":0,"explanation":"解析"}]}',
     '--- 文献内容开始 ---',
     excerpt,
@@ -221,15 +225,24 @@ export async function generateScript(options: GalGenerateOptions, contextText: s
     text: line.text,
     emotion: line.emotion
   }))
-  const questions: QuizQuestion[] = parseQuizQuestions(response.content).questions.map((item, offset) => ({
+  const parsedQuestions = parseQuizQuestions(response.content).questions
+  const checkpoints = assignCheckpoints(parsedQuestions.length, lines.length)
+  const questions: QuizQuestion[] = parsedQuestions.map((item, offset) => ({
     id: newId('quiz'),
     index: offset,
     question: item.question,
     options: item.options,
     answerIndex: item.answerIndex,
     explanation: item.explanation,
+    branches: completeBranches({
+      options: item.options,
+      answerIndex: item.answerIndex,
+      explanation: item.explanation,
+      branches: item.branches
+    }),
     sourceId: found.node.id,
     scriptId,
+    checkpoint: checkpoints[offset] ?? null,
     createdAt: Date.now()
   }))
 
@@ -237,7 +250,8 @@ export async function generateScript(options: GalGenerateOptions, contextText: s
     id: scriptId,
     sourceId: found.node.id,
     sourceKind: found.kind,
-    title: `${found.node.title} · ${character.name}`,
+    title: sourceChapter ? `${sourceChapter} · ${character.name}` : `${found.node.title} · ${character.name}`,
+    sourceChapter,
     characterId: character.id,
     lines,
     questions,
@@ -249,7 +263,7 @@ export async function generateScript(options: GalGenerateOptions, contextText: s
 /* --------------------------------- 问答 --------------------------------- */
 
 export async function generateQuestions(
-  input: { sourceId?: string; scriptId?: string | null; contextText?: string; title?: string; count?: number },
+  input: { sourceId?: string; scriptId?: string | null; contextText?: string; title?: string; count?: number; progressive?: boolean },
   fallbackText = ''
 ): Promise<{ questions: QuizQuestion[]; truncated: boolean }> {
   const count = Math.min(Math.max(input.count ?? 3, 1), 8)
@@ -268,12 +282,20 @@ export async function generateQuestions(
           role: 'user',
           content: [
             `请根据下面的内容出 ${count} 道单选题，考察理解而不是背诵原文。`,
+            // 分段取材时（generateForScript 会给出【第 N 题：只能考这一段】的标记），
+            // 每题只能考它自己那一段已经讲过的内容，不许超纲问后面的。
+            input.progressive
+              ? '下面按阅读顺序分好了段落：第 i 题只能考第 i 块（以及更早的块）里出现过的内容，严禁考察后面块里才出现的情节；不要出「整篇主旨」这类要读完全篇才能回答的题。'
+              : '',
             '每题 4 个选项，只有一个正确；不要出现「以上都对」这类选项。',
-            '只输出 JSON：{"questions":[{"question":"题干","options":["A","B","C","D"],"answerIndex":0,"explanation":"解析"}]}',
+            '每题还要给每个选项写一句「答完题后角色接着说的话」branches：正确选项写强化（肯定 + 一句话点出关键），错误选项写纠正（先用角色口吻指出误解，再点出正确要点），每句不超过 45 字。',
+            '只输出 JSON：{"questions":[{"question":"题干","options":["A","B","C","D"],"answerIndex":0,"explanation":"解析","branches":[{"choiceIndex":0,"text":"答对时的强化台词","emotion":"happy"}]}]}',
             '--- 内容开始 ---',
             text,
             '--- 内容结束 ---'
-          ].join('\n')
+          ]
+            .filter(Boolean)
+            .join('\n')
         }
       ]
     },
@@ -291,6 +313,12 @@ export async function generateQuestions(
       options: item.options,
       answerIndex: item.answerIndex,
       explanation: item.explanation,
+      branches: completeBranches({
+        options: item.options,
+        answerIndex: item.answerIndex,
+        explanation: item.explanation,
+        branches: item.branches
+      }),
       sourceId: input.sourceId ?? '',
       scriptId: input.scriptId ?? null,
       createdAt: Date.now()
@@ -302,8 +330,17 @@ export async function generateQuestions(
 export async function generateForScript(scriptId: string, count = 6): Promise<{ questions: QuizQuestion[]; truncated: boolean }> {
   const script = await getScript(scriptId)
   if (!script) throw new Error('剧本不存在')
-  const text = script.lines.map((item) => `${item.speaker === 'character' ? '角色' : item.speaker === 'user' ? '我' : '旁白'}：${item.text}`).join('\n')
-  const result = await generateQuestions({ sourceId: script.sourceId, scriptId, contextText: text, title: script.title, count }, text)
+  const label = (item: { speaker: string; text: string }): string => `${item.speaker === 'character' ? '角色' : item.speaker === 'user' ? '我' : '旁白'}：${item.text}`
+  // 按段投喂：让模型清楚「第 i 题只能考第 i 段」，避免一口气问完整篇
+  const blocks = segmentBlocks(script.lines, count, { label })
+  const result = await generateQuestions(
+    { sourceId: script.sourceId, scriptId, contextText: blocks, title: script.title, count, progressive: true },
+    blocks
+  )
+  const checkpoints = assignCheckpoints(result.questions.length, script.lines.length)
+  result.questions.forEach((question, offset) => {
+    question.checkpoint = checkpoints[offset] ?? null
+  })
   await saveScript({ id: script.id, questions: result.questions })
   return result
 }
@@ -329,6 +366,7 @@ export async function evaluateAnswer(question: QuizQuestion, answer: string): Pr
         scriptId: question.scriptId,
         question: question.question,
         answer: answered ? String(picked) : '',
+        choiceIndex: answered ? picked : null,
         correct,
         at: Date.now()
       },

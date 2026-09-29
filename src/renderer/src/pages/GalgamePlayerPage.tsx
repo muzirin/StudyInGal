@@ -86,6 +86,7 @@ export function GalgamePlayerPage() {
   const live2dEnabled = useAppStore((state) => state.settings?.live2d.enabled ?? false)
   const quizAuto = useAppStore((state) => state.settings?.quiz?.autoAtSceneEnd ?? true)
   const quizCount = useAppStore((state) => state.settings?.quiz?.count ?? 3)
+  const generateAtCheckpoint = useAppStore((state) => state.settings?.quiz?.generateAtCheckpoint ?? false)
   const compact = useMediaQuery('(max-width: 1100px)')
 
   const [script, setScript] = useState<GalScript | null>(null)
@@ -107,6 +108,8 @@ export function GalgamePlayerPage() {
     title: ''
   })
   const [regenerating, setRegenerating] = useState(false)
+  const [finished, setFinished] = useState(false)
+  const [answeredCount, setAnsweredCount] = useState(0)
   const askedQuestions = useRef<Set<string>>(new Set())
   const timerRef = useRef<number | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
@@ -122,6 +125,12 @@ export function GalgamePlayerPage() {
 
   useEffect(() => {
     let cancelled = false
+    // 换剧本时清掉上一部剧本的答题状态，否则阶段性检测会把旧进度算进来
+    askedQuestions.current.clear()
+    lastSceneRef.current = -1
+    setFinished(false)
+    setAnsweredCount(0)
+    setQuiz({ open: false, questions: [], title: '' })
     void (async () => {
       const [loadedScript, characters, saves] = await Promise.all([
         api.gal.getScript(scriptId),
@@ -189,7 +198,11 @@ export function GalgamePlayerPage() {
       return
     }
     if (index < script.lines.length - 1) setIndex(index + 1)
-    else setAuto(false)
+    else {
+      setAuto(false)
+      // 读到结尾：收尾时把最后一段的检测放出来
+      setFinished(true)
+    }
   }
 
   useEffect(() => {
@@ -246,6 +259,8 @@ export function GalgamePlayerPage() {
   /* --------------------------------- 答题 --------------------------------- */
 
   const quizQuestions = script?.questions ?? []
+  /** 题目带 checkpoint 时按进度穿插检测；旧剧本没有锚点，退化为「每幕一批」 */
+  const stagedQuiz = quizQuestions.some((item) => typeof item.checkpoint === 'number')
 
   /** 每幕分配到的题量：题目总量 / 幕数，且不超过设置里的「每组题目数量」。 */
   const perScene = Math.max(
@@ -259,6 +274,7 @@ export function GalgamePlayerPage() {
       return
     }
     for (const item of items) askedQuestions.current.add(item.id)
+    setAnsweredCount(askedQuestions.current.size)
     setQuiz({ open: true, questions: items, title })
   }
 
@@ -277,9 +293,56 @@ export function GalgamePlayerPage() {
     }
   }
 
-  // 每读完一幕，自动弹出这一幕对应的题目（题目随剧本生成，读取时不需要联网）
+  // 阶段性检测（新）：题目锚在剧本进度上，读到该段落后插入一次检测
+  useEffect(() => {
+    if (!script || !quizAuto || !stagedQuiz) return
+    const due = quizQuestions.filter((item) => {
+      if (askedQuestions.current.has(item.id)) return false
+      if (typeof item.checkpoint !== 'number') return false
+      // 已经读过了该题对应的段落（走完整段，或读到最后一句准备收尾）
+      return item.checkpoint < index || (finished && item.checkpoint <= index)
+    })
+    if (due.length === 0) return
+    const batch = due.slice(0, quizCount)
+    // 标题按「刚读完的那一句」标注，而不是当前句，避免看起来比实际进度超前一句
+    const lastCheckpoint = Math.max(...batch.map((item) => (typeof item.checkpoint === 'number' ? item.checkpoint : index))) + 1
+    const title = `${script.title} · 读到第 ${lastCheckpoint} 句的检测`
+
+    if (!generateAtCheckpoint) {
+      openQuizWith(batch, title)
+      return
+    }
+
+    // 「学到哪里问到哪里」：只把已读到的台词交给模型当场出题，保证不超纲。
+    // 预生成的同段题目直接标记为已用，避免和现场出的题重复。
+    void (async () => {
+      for (const item of batch) askedQuestions.current.add(item.id)
+      setAnsweredCount(askedQuestions.current.size)
+      try {
+        const readSoFar = script.lines
+          .slice(0, index + (finished ? 1 : 0))
+          .map((line) => `${line.speaker === 'character' ? character?.name ?? '角色' : line.speaker === 'user' ? '我' : '旁白'}：${line.text}`)
+          .join('\n')
+        const generated = await api.quiz.generate({
+          sourceId: script.sourceId,
+          scriptId: script.id,
+          contextText: readSoFar,
+          title,
+          count: Math.max(1, Math.min(quizCount, 3))
+        })
+        setQuiz({ open: true, questions: generated.questions, title })
+      } catch (error) {
+        toast('warning', `现场出题失败（${(error as Error).message}），改用随剧本预生成的题目`)
+        setQuiz({ open: true, questions: batch, title })
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, finished, quizAuto, stagedQuiz, generateAtCheckpoint, script?.id, quizQuestions.length])
+
+  // 兼容旧剧本：每读完一幕，弹出这一幕对应的题目
   useEffect(() => {
     if (!currentScene || !script) return
+    if (stagedQuiz) return
     if (lastSceneRef.current === currentScene.index) return
     const previous = lastSceneRef.current
     lastSceneRef.current = currentScene.index
@@ -289,7 +352,7 @@ export function GalgamePlayerPage() {
     if (pending.length === 0) return
     openQuizWith(pending.slice(0, perScene), `${script.title} · 第 ${currentScene.index + 1} 幕`)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentScene?.index, quizAuto, quizQuestions.length, script?.id])
+  }, [currentScene?.index, quizAuto, quizQuestions.length, script?.id, stagedQuiz])
 
   // ?quiz=1 直接开始问答
   useEffect(() => {
@@ -406,6 +469,14 @@ export function GalgamePlayerPage() {
             </Typography>
             <Chip size="small" label={`第 ${(currentScene?.index ?? 0) + 1} 幕 / 共 ${scenes.length} 幕`} />
             <Chip size="small" variant="outlined" label={`${index + 1} / ${script.lines.length}`} />
+            {quizQuestions.length > 0 ? (
+              <Chip
+                size="small"
+                color={stagedQuiz ? 'primary' : 'default'}
+                variant={stagedQuiz ? 'filled' : 'outlined'}
+                label={`检测 ${answeredCount}/${quizQuestions.length}`}
+              />
+            ) : null}
           </Stack>
           <LinearProgress variant="determinate" value={((index + 1) / script.lines.length) * 100} sx={{ mt: 1, borderRadius: 999 }} />
         </Paper>
@@ -497,15 +568,28 @@ export function GalgamePlayerPage() {
             onClick={(event) => event.stopPropagation()}
             sx={{ position: 'absolute', top: 12, right: 12, zIndex: 4, ...GLASS_CONTROL }}
           >
-            <Tooltip title="随堂问答">
+            <Tooltip title={stagedQuiz ? '检测已读到的内容' : '随堂问答'}>
               <IconButton aria-label="随堂问答"
                 size="small"
                 sx={iconSx}
                 onClick={() => {
-                  const pending = quizQuestions.filter((item) => !askedQuestions.current.has(item.id))
+                  // 阶段性检测：只问「已经读到」的题目，绝不提前剧透后面的内容
+                  const pool = stagedQuiz
+                    ? quizQuestions.filter((item) => typeof item.checkpoint === 'number' && (item.checkpoint < index || (finished && item.checkpoint <= index)))
+                    : quizQuestions
+                  const pending = pool.filter((item) => !askedQuestions.current.has(item.id))
+                  if (pending.length === 0) {
+                    if (stagedQuiz) {
+                      const next = quizQuestions.find((item) => !askedQuestions.current.has(item.id) && typeof item.checkpoint === 'number')
+                      toast('info', next ? `还没有读到下一处检测点（第 ${(next.checkpoint ?? 0) + 1} 句之后才会出题）` : '这本书的检测题已经做完了')
+                    } else {
+                      toast('info', '暂时没有可用的题目')
+                    }
+                    return
+                  }
                   openQuizWith(
-                    (pending.length > 0 ? pending : quizQuestions).slice(0, Math.max(perScene, 3)),
-                    `${script.title} · 随堂问答`
+                    pending.slice(0, stagedQuiz ? Math.max(1, Math.min(quizCount, 2)) : Math.max(perScene, 3)),
+                    stagedQuiz ? `${script.title} · 检测已读内容` : `${script.title} · 随堂问答`
                   )
                 }}
               >
@@ -698,6 +782,7 @@ export function GalgamePlayerPage() {
         scriptId={script.id}
         title={quiz.title}
         questions={quiz.questions.length > 0 ? quiz.questions : undefined}
+        speakerName={character?.name}
         regenerate={regenerateQuestions}
       />
 

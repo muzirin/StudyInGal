@@ -23,8 +23,10 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { TitleBar } from './TitleBar'
 import { NavPanel } from './NavPanel'
 import { RouteTransition } from '../components/RouteTransition'
+import { BackButton } from '../components/BackButton'
 import { CommandPalette } from '../components/CommandPalette'
 import { ErrorBoundary } from '../components/ErrorBoundary'
+import { isSecondaryRoute } from '../lib/navigation'
 import { GROUP_ORDER, MODULES, pathToModuleId, type ModuleDef } from '../modules/registry'
 import { useAppStore } from '../state/appStore'
 
@@ -63,6 +65,7 @@ export function AppShell() {
   const activeId = pathToModuleId(location.pathname)
   const activeModule = MODULES.find((module) => module.id === activeId)
   const isHome = location.pathname === '/'
+  const isSecondary = isSecondaryRoute(location.pathname)
 
   const firstRouteEffect = useRef(true)
   useEffect(() => {
@@ -167,10 +170,15 @@ export function AppShell() {
           title={crumb?.label ?? activeModule?.label ?? '总览'}
           subtitle={crumb?.hint ?? activeModule?.feature}
           leading={
-            compactViewport ? (
-              <IconButton className="no-drag" size="small" onClick={() => setMobileOpen(true)} aria-label="打开导航">
-                <MenuRoundedIcon fontSize="small" />
-              </IconButton>
+            compactViewport || isSecondary ? (
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                {compactViewport ? (
+                  <IconButton className="no-drag" size="small" onClick={() => setMobileOpen(true)} aria-label="打开导航">
+                    <MenuRoundedIcon fontSize="small" />
+                  </IconButton>
+                ) : null}
+                {isSecondary ? <BackButton /> : null}
+              </Stack>
             ) : null
           }
         />

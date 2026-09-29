@@ -8,7 +8,7 @@ import { archiveDir, charactersDir, libraryDir } from '../lib/paths'
 import { bus } from '../lib/events'
 import * as settingsService from '../services/settings'
 import * as libraryService from '../services/library'
-import { mergeNode, readDocument, runOcr, writeDocument } from '../services/documents'
+import { mergeNode, readDocument, renderPreview, runOcr, writeDocument } from '../services/documents'
 import * as cloud from '../services/cloud/index'
 import * as ai from '../services/ai/client'
 import { generateScript } from '../services/ai/script'
@@ -227,6 +227,11 @@ const handlers: Record<string, Handler> = {
     const found = libraryService.findNode(asString(payload.nodeId))
     if (!found) throw new Error('文献不存在')
     return found.node.chapters
+  },
+  [CHANNELS.library.preview]: (payload) => {
+    const found = libraryService.findNode(asString(payload.nodeId))
+    if (!found) throw new Error('文献不存在')
+    return renderPreview(found.node)
   },
   [CHANNELS.library.ocr]: async (payload) => {
     const found = libraryService.findNode(asString(payload.nodeId))

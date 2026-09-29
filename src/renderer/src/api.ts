@@ -37,6 +37,7 @@ export const api: StudyApi = {
     merge: (nodeId) => invoke(CHANNELS.library.merge, { nodeId }),
     mergeExport: (nodeId, target) => invoke(CHANNELS.library.mergeExport, { nodeId, target }),
     chapters: (nodeId) => invoke(CHANNELS.library.chapters, { nodeId }),
+    preview: (nodeId) => invoke(CHANNELS.library.preview, { nodeId }),
     ocr: (nodeId, language) => invoke(CHANNELS.library.ocr, { nodeId, language }),
     ocrText: (nodeId) => invoke(CHANNELS.library.ocrText, { nodeId }),
     createFolder: (input) => invoke(CHANNELS.library.createFolder, input),

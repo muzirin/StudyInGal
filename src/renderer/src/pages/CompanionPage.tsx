@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Alert,
   Box,
@@ -58,6 +59,7 @@ type Panel = 'chat' | 'character' | 'history'
 
 export function CompanionPage() {
   const theme = useTheme()
+  const navigate = useNavigate()
   const compact = useMediaQuery('(max-width: 1100px)')
   const settings = useAppStore((state) => state.settings)
   const patchSettings = useAppStore((state) => state.patchSettings)
@@ -158,6 +160,21 @@ export function CompanionPage() {
   }
 
   if (!settings) return null
+
+  // 应用不再内置默认角色，没有角色时直接引导创建（对话/伴学都依赖角色）
+  if (characters.length === 0) {
+    return (
+      <EmptyState
+        title="还没有角色"
+        description="伴学娘对话、Gal 剧本与出题都需要至少一个角色。先创建一个属于你的伴学娘吧。"
+        action={
+          <Button variant="contained" onClick={() => navigate('/characters')}>
+            去创建角色
+          </Button>
+        }
+      />
+    )
+  }
 
   const panels: { id: Panel; label: string; hint: string; icon: React.ReactNode }[] = [
     { id: 'chat', label: '对话', hint: `${messages.length} 条消息`, icon: <ForumRoundedIcon fontSize="small" /> },

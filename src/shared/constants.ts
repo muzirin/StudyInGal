@@ -90,7 +90,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   quiz: {
     autoAtSceneEnd: true,
-    count: 3
+    count: 3,
+    generateAtCheckpoint: false
   },
   live2d: {
     enabled: false,

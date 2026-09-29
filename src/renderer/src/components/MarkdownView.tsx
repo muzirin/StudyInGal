@@ -2,6 +2,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
+import rehypeHighlight from 'rehype-highlight'
 import { Box } from '@mui/material'
 import 'katex/dist/katex.min.css'
 
@@ -14,6 +15,7 @@ interface Props {
 export function MarkdownView({ children, compact = false, fontSize }: Props) {
   return (
     <Box
+      className="sig-markdown"
       sx={{
         fontSize: fontSize ?? (compact ? 14 : 15),
         lineHeight: 1.75,
@@ -37,6 +39,7 @@ export function MarkdownView({ children, compact = false, fontSize }: Props) {
           borderRadius: 1,
           fontSize: '0.88em'
         },
+        '& pre code': { display: 'block', color: 'text.primary' },
         '& table': { borderCollapse: 'collapse', width: '100%', my: 1.5 },
         '& th, & td': { border: '1px solid', borderColor: 'divider', px: 1.2, py: 0.7 },
         '& blockquote': {
@@ -51,7 +54,10 @@ export function MarkdownView({ children, compact = false, fontSize }: Props) {
         '& a': { color: 'primary.main' }
       }}
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: false, ignoreMissing: true }]]}
+      >
         {children}
       </ReactMarkdown>
     </Box>

@@ -8,6 +8,7 @@ export function normalizeScript(script: GalScript): GalScript {
   return {
     ...script,
     sceneId: script.sceneId ?? null,
+    sourceChapter: script.sourceChapter ?? null,
     lines: Array.isArray(script.lines) ? script.lines : [],
     questions: Array.isArray(script.questions) ? script.questions : []
   }

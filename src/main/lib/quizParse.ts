@@ -1,11 +1,15 @@
 /** 容错解析模型返回的单选题 JSON（被截断时保留已完整的题目）。 */
 import { findArrayPayload, scanJsonObjects, unescapeJsonString } from './jsonScan'
+import { normalizeBranches } from './quizBranches'
+import type { QuizBranch } from '@shared/types'
 
 export interface ParsedQuestion {
   question: string
   options: string[]
   answerIndex: number
   explanation: string
+  /** 每个选项的分支台词（答对强化 / 答错解释），模型没给就是空数组 */
+  branches: QuizBranch[]
 }
 
 const extractField = (objectText: string, name: string): string | null => {
@@ -34,7 +38,8 @@ const build = (input: unknown): ParsedQuestion | null => {
     question,
     options,
     answerIndex: Math.min(rawIndex, options.length - 1),
-    explanation: typeof record.explanation === 'string' ? record.explanation : ''
+    explanation: typeof record.explanation === 'string' ? record.explanation : '',
+    branches: normalizeBranches(record.branches, options.length)
   }
 }
 
@@ -69,7 +74,9 @@ export function parseQuizQuestions(content: string): { questions: ParsedQuestion
         question: questionText,
         options,
         answerIndex: Math.min(index, options.length - 1),
-        explanation: extractField(objectText, 'explanation') ?? ''
+        explanation: extractField(objectText, 'explanation') ?? '',
+        // 截断容错路径下嵌套的 branches 解析不可靠，交给 completeBranches 用 explanation 补齐
+        branches: []
       })
       continue
     }

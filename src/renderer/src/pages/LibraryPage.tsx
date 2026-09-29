@@ -773,6 +773,14 @@ export function LibraryPage() {
         </MenuItem>
         <MenuItem
           onClick={() => {
+            if (menuNode) navigate(`/galgame?source=${menuNode.id}`)
+            setMenuAnchor(null)
+          }}
+        >
+          <AutoStoriesRoundedIcon fontSize="small" style={{ marginRight: 12 }} /> 生成 Gal 剧本
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
             if (menuNode) openAsk({ sourceId: menuNode.id, title: menuNode.title })
             setMenuAnchor(null)
           }}

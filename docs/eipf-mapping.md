@@ -15,6 +15,7 @@ StudyInGal 的 Galgame 剧本与随堂题目按下面的方式映射到 EIPF，�
 | `DialogueLine.speaker = 'character' \| 'user'` | `dialog` | `data-speaker` 为说话者（用户侧写「我」） |
 | `DialogueLine.speaker = 'narration'` | `dialog` | `data-thought="true"`，无说话者 |
 | `QuizQuestion`（单选） | `decision` | 选项即 `data-choice-index` 顺序；正确项与解析放入 `data-params` |
+| `QuizQuestion.branches[]`（答题分支） | `predicate` + `dialog` + `navigate` | 每个选项一条 `predicate(data-references=选项下标)` → 该分支的角色台词 → `navigate` 回主线 |
 
 ### 对话
 
@@ -44,6 +45,28 @@ StudyInGal 的 Galgame 剧本与随堂题目按下面的方式映射到 EIPF，�
 - EIPF 的 `decision` 只描述**分支**（不描述对错），所以「正确项 + 解析」按规范「新实现类型的参数以 `data-params` 完整保留」的约定放进 `data-params`。
 - 选项顺序即 `data-choice-index` 顺序，与渲染器 `choice-btn` 一一对应。
 
+### 答题分支（选对了强化 / 选错了由角色解释）
+
+EIPF 规范里 `decision` 的按钮**不写** `data-target`（「分支跳转由渲染器自定义实现（配合 `predicate`）」），
+因此每个选项对应一组条目：`predicate`（引用选项下标）→ 该分支的角色台词 → `navigate` 回到主线。
+
+```html
+<!-- decision（data-index="12"）… -->
+<div class="scene-entry scene-predicate" data-type="predicate" data-index="13" data-cmd="Predicate"
+     data-references="0" data-params="{&quot;references&quot;:0,&quot;correct&quot;:true}"></div>
+<div class="scene-entry scene-dialogue" data-type="dialog" data-index="14" data-cmd="Dialog"
+     data-speaker="小樱" data-params="{&quot;emotion&quot;:&quot;happy&quot;,&quot;choiceIndex&quot;:0,&quot;correct&quot;:true,&quot;branch&quot;:true}">
+  <span class="speaker">小樱</span>
+  <span class="text">对，梯度指的就是最陡上坡方向。</span>
+</div>
+<div class="scene-entry scene-navigate" data-type="navigate" data-index="15" data-cmd="GotoPage"
+     data-target="18" data-params="{&quot;to&quot;:18}"></div>
+```
+
+- 选对的分支台词是**强化**（肯定 + 点出关键），选错的是**纠正/解释**（先指出误解，再给正确要点）。
+- `data-params.correct` 由 `answerIndex` 推导，便于导出/校验；`data-references` 与 `data-choice-index` 对齐。
+- 跳转目标（`data-params.to` / `data-target`）是**主线恢复点**：该题所有分支条目之后的那个 `data-index`。
+
 ## 内部字段对照
 
 | StudyInGal | EIPF |
@@ -52,10 +75,13 @@ StudyInGal 的 Galgame 剧本与随堂题目按下面的方式映射到 EIPF，�
 | `QuizQuestion.question` | `data-text` / 题面文本 |
 | `QuizQuestion.options` | `data-choice-index` 按钮序列 |
 | `QuizQuestion.answerIndex` + `explanation` | `data-params.answerIndex` / `.explanation` |
+| `QuizQuestion.checkpoint` | 题目条目插入到「该行台词之后」的位置 |
+| `QuizQuestion.branches[].choiceIndex` | `predicate.data-references`（= `data-choice-index`） |
+| `QuizQuestion.branches[].text` | 分支 `dialog` 的正文（`speaker` = 角色名） |
 | `GalScript.lines` + `questions` | `body.xhtml` 中的线性 `scene-entry` 序列 |
 
-`scriptToEntries()` 目前把对话排在前、题目排在后（`index` 连续）；导出器可以按幕把题目穿插到对应对话之后，
-`index` 仍然保持连续即可满足规范。
+`scriptToEntries()` 现在按 `checkpoint` 把题目（连同它的分支条目）**穿插**到对应台词之后，
+`index` 保持连续；没有 `checkpoint` 的旧题目接在末尾。
 
 ## 现状与后续
 

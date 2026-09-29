@@ -67,6 +67,13 @@ async function readTextFile(path: string): Promise<string> {
   return await blob.text()
 }
 
+/** 读取任意路径的纯文本，供「只生成某一章」取材使用（非文本格式给出明确提示） */
+export async function readPathText(path: string): Promise<string> {
+  const format = detectFormat(path)
+  if (isReadableText(format)) return readTextFile(path)
+  return `[StudyInGal 移动端] ${format.toUpperCase()} 解析暂未支持（桌面端可用）。文件已保存在：${path}`
+}
+
 export async function readNodeText(node: LibraryNode): Promise<string> {
   if (node.format === 'folder') {
     const merged = await mergeNode(node)
@@ -113,7 +120,9 @@ export async function mergeNode(node: LibraryNode): Promise<MergedDocument> {
   for (const ref of refs) {
     let content = ''
     try {
-      content = await readTextFile(ref.path)
+      // 用 readPathText 而不是 readTextFile：PDF/DOCX 章节会给出明确提示，
+      // 而不是把二进制当 base64 解出一堆乱码。
+      content = await readPathText(ref.path)
     } catch (error) {
       content = `> ⚠️ 无法读取该章节：${(error as Error).message}`
     }
@@ -147,5 +156,27 @@ export async function importFile(file: File, title: string): Promise<string> {
 }
 
 export const toDisplayUri = (path: string): string => Capacitor.convertFileSrc(path)
+
+/** 文件是否存在（用于校验所选章节是否还有效） */
+export async function pathExists(path: string): Promise<boolean> {
+  try {
+    const info = await Filesystem.stat({ path })
+    return Boolean(info)
+  } catch {
+    return false
+  }
+}
+
+/** Blob → base64（不带 data: 前缀），Capacitor Filesystem 在部分平台返回 Blob */
+export async function blobToBase64(blob: Blob): Promise<string> {
+  const buffer = await blob.arrayBuffer()
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  const chunk = 0x8000
+  for (let offset = 0; offset < bytes.length; offset += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunk))
+  }
+  return btoa(binary)
+}
 
 export type { Directory }

@@ -134,7 +134,7 @@ body {
 
 .sig-scroll-thin::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: color-mix(in srgb, var(--mui-palette-primary-main) 32%, transparent);
+  background: color-mix(in srgb, var(--sig-palette-primary-main) 32%, transparent);
 }
 
 .sig-scroll-thin::-webkit-scrollbar-track {
@@ -149,4 +149,74 @@ body {
   .sig-caret::after {
     animation: none !important;
   }
+}
+
+/* ---------------------------- 代码块语法高亮 ---------------------------- *
+ * 配色取自主题变量（--sig-code-*，见 theme/palettes.ts），随明暗模式切换。
+ * 类名由 rehype-highlight 生成（highlight.js）。
+ */
+
+.sig-markdown .hljs {
+  color: var(--sig-palette-text-primary);
+  background: transparent;
+}
+
+.sig-markdown .hljs-comment,
+.sig-markdown .hljs-quote {
+  color: var(--sig-code-comment);
+  font-style: italic;
+}
+
+.sig-markdown .hljs-keyword,
+.sig-markdown .hljs-selector-tag,
+.sig-markdown .hljs-literal,
+.sig-markdown .hljs-doctag,
+.sig-markdown .hljs-name,
+.sig-markdown .hljs-strong {
+  color: var(--sig-code-keyword);
+  font-weight: 600;
+}
+
+.sig-markdown .hljs-string,
+.sig-markdown .hljs-regexp,
+.sig-markdown .hljs-addition,
+.sig-markdown .hljs-meta .hljs-string {
+  color: var(--sig-code-string);
+}
+
+.sig-markdown .hljs-number,
+.sig-markdown .hljs-symbol,
+.sig-markdown .hljs-bullet,
+.sig-markdown .hljs-variable,
+.sig-markdown .hljs-template-variable {
+  color: var(--sig-code-number);
+}
+
+.sig-markdown .hljs-title,
+.sig-markdown .hljs-title.class_,
+.sig-markdown .hljs-title.function_,
+.sig-markdown .hljs-section {
+  color: var(--sig-code-function);
+}
+
+.sig-markdown .hljs-attr,
+.sig-markdown .hljs-attribute,
+.sig-markdown .hljs-property,
+.sig-markdown .hljs-params {
+  color: var(--sig-code-attr);
+}
+
+.sig-markdown .hljs-built_in,
+.sig-markdown .hljs-type,
+.sig-markdown .hljs-class .hljs-title,
+.sig-markdown .hljs-meta {
+  color: var(--sig-code-builtin);
+}
+
+.sig-markdown .hljs-deletion {
+  color: var(--sig-code-deleted);
+}
+
+.sig-markdown .hljs-emphasis {
+  font-style: italic;
 }

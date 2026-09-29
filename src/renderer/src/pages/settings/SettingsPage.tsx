@@ -114,7 +114,7 @@ export function SettingsPage() {
       {
         id: 'quiz',
         label: '问答与测验',
-        hint: '随堂出题、判分与记录',
+        hint: '阶段性检测、判分与记录',
         icon: <QuizRoundedIcon fontSize="small" />,
         render: () => <QuizSection />
       },
