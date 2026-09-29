@@ -37,11 +37,14 @@ describe('formatRelative', () => {
 
 describe('dayBucket', () => {
   it('按自然日划分桶', () => {
-    const now = Date.now()
-    expect(dayBucket(now)).toBe('今天')
-    expect(dayBucket(now - 26 * 3_600_000)).toBe('昨天')
-    expect(dayBucket(now - 4 * 86_400_000)).toBe('本周')
-    expect(dayBucket(now - 30 * 86_400_000)).toBe('更早')
+    // 用「今天正午」而不是相对小时数，避免测试依赖运行时刻（UTC 下会跨日）
+    const today = new Date()
+    today.setHours(12, 0, 0, 0)
+    const noon = today.getTime()
+    expect(dayBucket(noon)).toBe('今天')
+    expect(dayBucket(noon - 86_400_000)).toBe('昨天')
+    expect(dayBucket(noon - 4 * 86_400_000)).toBe('本周')
+    expect(dayBucket(noon - 30 * 86_400_000)).toBe('更早')
   })
 })
 
